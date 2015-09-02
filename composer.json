@@ -5,6 +5,7 @@
     "keywords": ["orm", "database"],
     "homepage": "http://www.doctrine-project.org",
     "license": "MIT",
+    "version": "2.5.100",
     "authors": [
         {"name": "Guilherme Blanco", "email": "guilhermeblanco@gmail.com"},
         {"name": "Roman Borschel", "email": "roman@code-factory.org"},
