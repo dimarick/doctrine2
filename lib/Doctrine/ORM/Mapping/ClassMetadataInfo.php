@@ -961,6 +961,15 @@ class ClassMetadataInfo implements ClassMetadata
         }
 
         foreach ($this->associationMappings as $field => $mapping) {
+            if (isset($mapping['declaredField']) && isset($parentReflFields[$mapping['declaredField']])) {
+                $this->reflFields[$field] = new ReflectionEmbeddedProperty(
+                    $parentReflFields[$mapping['declaredField']],
+                    $reflService->getAccessibleProperty($mapping['originalClass'], $mapping['originalField']),
+                    $mapping['originalClass']
+                );
+                continue;
+            }
+
             $this->reflFields[$field] = isset($mapping['declared'])
                 ? $reflService->getAccessibleProperty($mapping['declared'], $field)
                 : $reflService->getAccessibleProperty($this->name, $field);
@@ -3271,6 +3280,23 @@ class ClassMetadataInfo implements ClassMetadata
             }
 
             $this->mapField($fieldMapping);
+        }
+        foreach ($embeddable->associationMappings as $associationMapping) {
+            $associationMapping['originalClass'] = isset($associationMapping['originalClass'])
+                ? $associationMapping['originalClass']
+                : $embeddable->name;
+            $associationMapping['declaredField'] = isset($associationMapping['declaredField'])
+                ? $property . '.' . $associationMapping['declaredField']
+                : $property;
+            $associationMapping['originalField'] = isset($associationMapping['originalField'])
+                ? $associationMapping['originalField']
+                : $associationMapping['fieldName'];
+            $associationMapping['fieldName'] = $property . "." . $associationMapping['fieldName'];
+
+            $this->_validateAndCompleteFieldMapping($associationMapping);
+            $this->assertFieldNotMapped($associationMapping['fieldName']);
+
+            $this->associationMappings[$associationMapping['fieldName']] = $associationMapping;
         }
     }
 
