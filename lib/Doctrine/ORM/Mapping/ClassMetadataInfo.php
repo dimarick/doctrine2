@@ -3281,6 +3281,7 @@ class ClassMetadataInfo implements ClassMetadata
 
             $this->mapField($fieldMapping);
         }
+
         foreach ($embeddable->associationMappings as $associationMapping) {
             $associationMapping['originalClass'] = isset($associationMapping['originalClass'])
                 ? $associationMapping['originalClass']
@@ -3292,8 +3293,8 @@ class ClassMetadataInfo implements ClassMetadata
                 ? $associationMapping['originalField']
                 : $associationMapping['fieldName'];
             $associationMapping['fieldName'] = $property . "." . $associationMapping['fieldName'];
+            $associationMapping['sourceEntity'] = $this->name;
 
-            $this->_validateAndCompleteFieldMapping($associationMapping);
             $this->assertFieldNotMapped($associationMapping['fieldName']);
 
             $this->associationMappings[$associationMapping['fieldName']] = $associationMapping;
