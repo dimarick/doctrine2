@@ -1,26 +1,39 @@
 <?php
 
 namespace Doctrine\Tests\ORM\Functional;
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Embeddable;
+use Doctrine\ORM\Mapping\Embedded;
+use Doctrine\ORM\Mapping\GeneratedValue;
+use Doctrine\ORM\Mapping\Id;
+use Doctrine\ORM\Mapping\ManyToMany;
 use Doctrine\ORM\Mapping\ManyToOne;
 use Doctrine\ORM\Mapping\OneToMany;
+use Doctrine\ORM\Mapping\OneToOne;
 
 /**
  * @group DDC-93
  */
-class ValueObjectsTest extends \Doctrine\Tests\OrmFunctionalTestCase
+class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 {
+
     public function setUp()
     {
         parent::setUp();
 
         try {
             $this->_schemaTool->createSchema(array(
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDC93Person'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDC93Address'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDC93Vehicle'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDC93Car'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDC3027Animal'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDC3027Dog'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToOne'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableOneToMany'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToMany'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableOneToOne'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\BidirectionalOne2ManyEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\UnidirectionalOne2ManyEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\ManyToOneEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\UnidirectionalManyToManyEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\BidirectionalManyToManyEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\UnidirectionalOneToOneEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\BidirectionalOneToOneEntity'),
             ));
         } catch(\Exception $e) {
         }
@@ -28,630 +41,584 @@ class ValueObjectsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
     public function testMetadataHasReflectionEmbeddablesAccessible()
     {
-        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDC93Person');
+        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToOne');
+        $this->assertInstanceOf('Doctrine\Common\Reflection\RuntimePublicReflectionProperty', $classMetadata->getReflectionProperty('embed'));
+        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.unidirectional'));
+        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.bidirectional'));
 
-        $this->assertInstanceOf('Doctrine\Common\Reflection\RuntimePublicReflectionProperty', $classMetadata->getReflectionProperty('address'));
-        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('address.street'));
+        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableOneToMany');
+        $this->assertInstanceOf('Doctrine\Common\Reflection\RuntimePublicReflectionProperty', $classMetadata->getReflectionProperty('embed'));
+        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.entities'));
+
+        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToMany');
+        $this->assertInstanceOf('Doctrine\Common\Reflection\RuntimePublicReflectionProperty', $classMetadata->getReflectionProperty('embed'));
+        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.unidirectional'));
+        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.bidirectional'));
+        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.bidirectionalInversed'));
+
+        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableOneToOne');
+        $this->assertInstanceOf('Doctrine\Common\Reflection\RuntimePublicReflectionProperty', $classMetadata->getReflectionProperty('embed'));
+        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.unidirectional'));
+        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.bidirectional'));
+        $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.bidirectionalInversed'));
     }
 
-    public function testCRUD()
+    public function testCRUDManyToOne()
     {
-        $person = new DDC93Person();
-        $person->name = "Tara";
-        $person->address = new DDC93Address();
-        $person->address->street = "United States of Tara Street";
-        $person->address->zip = "12345";
-        $person->address->city = "funkytown";
-        $person->address->country = new DDC93Country('Germany');
+        $relatedBidirectional = new BidirectionalOne2ManyEntity();
+        $relatedUnidirectional = new UnidirectionalOne2ManyEntity();
+        $this->_em->persist($relatedBidirectional);
+        $this->_em->persist($relatedUnidirectional);
 
-        // 1. check saving value objects works
-        $this->_em->persist($person);
+        $entity = new DDCEmbeddableManyToOne();
+        $entity->embed->bidirectional = $relatedBidirectional;
+        $entity->embed->unidirectional = $relatedUnidirectional;
+
+        $this->_em->persist($entity);
+
         $this->_em->flush();
 
         $this->_em->clear();
 
         // 2. check loading value objects works
-        $person = $this->_em->find(DDC93Person::CLASSNAME, $person->id);
+        $entity = $this->_em->find(DDCEmbeddableManyToOne::CLASSNAME, $entity->id);
 
-        $this->assertInstanceOf(DDC93Address::CLASSNAME, $person->address);
-        $this->assertEquals('United States of Tara Street', $person->address->street);
-        $this->assertEquals('12345', $person->address->zip);
-        $this->assertEquals('funkytown', $person->address->city);
-        $this->assertInstanceOf(DDC93Country::CLASSNAME, $person->address->country);
-        $this->assertEquals('Germany', $person->address->country->name);
+        $this->assertInstanceOf(DDCEmbedManyToOne::CLASSNAME, $entity->embed);
+
+        $this->assertInstanceOf(BidirectionalOne2ManyEntity::CLASSNAME, $entity->embed->bidirectional);
+        $this->assertEquals($relatedBidirectional->id, $entity->embed->bidirectional->id);
+
+        $this->assertInstanceOf(UnidirectionalOne2ManyEntity::CLASSNAME, $entity->embed->unidirectional);
+        $this->assertEquals($relatedUnidirectional->id, $entity->embed->unidirectional->id);
 
         // 3. check changing value objects works
-        $person->address->street = "Street";
-        $person->address->zip = "54321";
-        $person->address->city = "another town";
-        $person->address->country->name = "United States of America";
+        $relatedBidirectional2 = new BidirectionalOne2ManyEntity();
+        $relatedUnidirectional2 = new UnidirectionalOne2ManyEntity();
+        $this->_em->persist($relatedBidirectional2);
+        $this->_em->persist($relatedUnidirectional2);
+
+        $entity->embed->bidirectional = $relatedBidirectional2;
+        $entity->embed->unidirectional = $relatedUnidirectional2;
+
         $this->_em->flush();
 
         $this->_em->clear();
 
-        $person = $this->_em->find(DDC93Person::CLASSNAME, $person->id);
+        $entity = $this->_em->find(DDCEmbeddableManyToOne::CLASSNAME, $entity->id);
 
-        $this->assertEquals('Street', $person->address->street);
-        $this->assertEquals('54321', $person->address->zip);
-        $this->assertEquals('another town', $person->address->city);
-        $this->assertEquals('United States of America', $person->address->country->name);
+        $this->assertInstanceOf(DDCEmbedManyToOne::CLASSNAME, $entity->embed);
+
+        $this->assertInstanceOf(BidirectionalOne2ManyEntity::CLASSNAME, $entity->embed->bidirectional);
+        $this->assertEquals($relatedBidirectional2->id, $entity->embed->bidirectional->id);
+
+        $this->assertInstanceOf(UnidirectionalOne2ManyEntity::CLASSNAME, $entity->embed->unidirectional);
+        $this->assertEquals($relatedUnidirectional2->id, $entity->embed->unidirectional->id);
 
         // 4. check deleting works
-        $personId = $person->id;;
-        $this->_em->remove($person);
+        $entityId = $entity->id;;
+        $this->_em->remove($entity);
         $this->_em->flush();
 
-        $this->assertNull($this->_em->find(DDC93Person::CLASSNAME, $personId));
+        $this->assertNull($this->_em->find(DDCEmbeddableManyToOne::CLASSNAME, $entityId));
     }
 
-    public function testLoadDql()
+    public function testCRUDOneToMany()
     {
-        for ($i = 0; $i < 3; $i++) {
-            $person = new DDC93Person();
-            $person->name = "Donkey Kong$i";
-            $person->address = new DDC93Address();
-            $person->address->street = "Tree";
-            $person->address->zip = "12345";
-            $person->address->city = "funkytown";
-            $person->address->country = new DDC93Country('United States of America');
+        $related = array(
+            new ManyToOneEntity(),
+            new ManyToOneEntity(),
+        );
+        $this->_em->persist($related[0]);
+        $this->_em->persist($related[1]);
 
-            $this->_em->persist($person);
-        }
+        $entity = new DDCEmbeddableOneToMany();
+        $entity->embed->entities = $related;
+        $related[0]->property = $entity;
+        $related[1]->property = $entity;
+
+        $this->_em->persist($entity);
+
+        $this->_em->flush();
+
+        $this->_em->clear();
+
+        // 2. check loading value objects works
+        $entity = $this->_em->find(DDCEmbeddableOneToMany::CLASSNAME, $entity->id);
+
+        $this->assertInstanceOf(DDCEmbedOneToMany::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(ManyToOneEntity::CLASSNAME, $entity->embed->entities[0]);
+        $this->assertInstanceOf(ManyToOneEntity::CLASSNAME, $entity->embed->entities[1]);
+        $this->assertEquals($related[0]->id, $entity->embed->entities[0]->id);
+        $this->assertEquals($related[1]->id, $entity->embed->entities[1]->id);
+
+        // 3. check changing value objects works
+        $related2 = array(
+            new ManyToOneEntity(),
+            new ManyToOneEntity(),
+        );
+        $this->_em->persist($related2[0]);
+        $this->_em->persist($related2[1]);
+
+        $this->_em->remove($entity->embed->entities[0]);
+        $this->_em->remove($entity->embed->entities[1]);
+
+        $entity->embed->entities = $related2;
+        $related2[0]->property = $entity;
+        $related2[1]->property = $entity;
+
+        $this->_em->flush();
+
+        $this->_em->clear();
+
+        $entity = $this->_em->find(DDCEmbeddableOneToMany::CLASSNAME, $entity->id);
+
+        $this->assertInstanceOf(DDCEmbedOneToMany::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(ManyToOneEntity::CLASSNAME, $entity->embed->entities[0]);
+        $this->assertInstanceOf(ManyToOneEntity::CLASSNAME, $entity->embed->entities[1]);
+        $this->assertEquals($related2[0]->id, $entity->embed->entities[0]->id);
+        $this->assertEquals($related2[1]->id, $entity->embed->entities[1]->id);
+
+        // 4. check deleting works
+        $entityId = $entity->id;;
+        $this->_em->remove($entity);
+        $this->_em->flush();
+
+        $this->assertNull($this->_em->find(DDCEmbeddableOneToMany::CLASSNAME, $entityId));
+    }
+
+    public function testCRUDManyToMany()
+    {
+        $relatedUni = array(
+            new UnidirectionalManyToManyEntity(),
+            new UnidirectionalManyToManyEntity(),
+        );
+
+        $relatedBi = array(
+            new BidirectionalManyToManyEntity(),
+            new BidirectionalManyToManyEntity(),
+        );
+
+        $relatedBiInversed = array(
+            new BidirectionalManyToManyEntity(),
+            new BidirectionalManyToManyEntity(),
+        );
+
+        $this->_em->persist($relatedUni[0]);
+        $this->_em->persist($relatedUni[1]);
+        $this->_em->persist($relatedBi[0]);
+        $this->_em->persist($relatedBi[1]);
+        $this->_em->persist($relatedBiInversed[0]);
+        $this->_em->persist($relatedBiInversed[1]);
+
+        $entity = new DDCEmbeddableManyToMany();
+        $entity->embed->unidirectional = $relatedUni;
+        $entity->embed->bidirectional = $relatedBi;
+        $entity->embed->bidirectionalInversed = $relatedBiInversed;
+        $relatedBiInversed[0]->propertyInversed = array($entity);
+        $relatedBiInversed[1]->propertyInversed = array($entity);
+
+        $this->_em->persist($entity);
+
+        $this->_em->flush();
+
+        $this->_em->clear();
+
+        // 2. check loading value objects works
+        $entity = $this->_em->find(DDCEmbeddableManyToMany::CLASSNAME, $entity->id);
+
+        $this->assertInstanceOf(DDCEmbedManyToMany::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(UnidirectionalManyToManyEntity::CLASSNAME, $entity->embed->unidirectional[0]);
+        $this->assertInstanceOf(UnidirectionalManyToManyEntity::CLASSNAME, $entity->embed->unidirectional[1]);
+        $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectional[0]);
+        $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectional[1]);
+        $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectionalInversed[0]);
+        $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectionalInversed[1]);
+        $this->assertEquals($relatedUni[0]->id, $entity->embed->unidirectional[0]->id);
+        $this->assertEquals($relatedUni[1]->id, $entity->embed->unidirectional[1]->id);
+        $this->assertEquals($relatedBi[0]->id, $entity->embed->bidirectional[0]->id);
+        $this->assertEquals($relatedBi[1]->id, $entity->embed->bidirectional[1]->id);
+        $this->assertEquals($relatedBiInversed[0]->id, $entity->embed->bidirectionalInversed[0]->id);
+        $this->assertEquals($relatedBiInversed[1]->id, $entity->embed->bidirectionalInversed[1]->id);
+
+        // 3. check changing value objects works
+        $relatedUni2 = array(
+            new UnidirectionalManyToManyEntity(),
+            new UnidirectionalManyToManyEntity(),
+        );
+
+        $relatedBi2 = array(
+            new BidirectionalManyToManyEntity(),
+            new BidirectionalManyToManyEntity(),
+        );
+
+        $relatedBiInversed2 = array(
+            new BidirectionalManyToManyEntity(),
+            new BidirectionalManyToManyEntity(),
+        );
+
+        $this->_em->persist($relatedUni2[0]);
+        $this->_em->persist($relatedUni2[1]);
+        $this->_em->persist($relatedBi2[0]);
+        $this->_em->persist($relatedBi2[1]);
+        $this->_em->persist($relatedBiInversed2[0]);
+        $this->_em->persist($relatedBiInversed2[1]);
+
+        $this->_em->remove($entity->embed->bidirectionalInversed[0]);
+        $this->_em->remove($entity->embed->bidirectionalInversed[1]);
+
+        $entity->embed->unidirectional = $relatedUni2;
+        $entity->embed->bidirectional = $relatedBi2;
+        $entity->embed->bidirectionalInversed = $relatedBiInversed2;
+        $relatedBiInversed2[0]->propertyInversed = array($entity);
+        $relatedBiInversed2[1]->propertyInversed = array($entity);
+
+        $this->_em->flush();
+
+        $this->_em->clear();
+
+        $entity = $this->_em->find(DDCEmbeddableManyToMany::CLASSNAME, $entity->id);
+
+        $this->assertInstanceOf(DDCEmbedManyToMany::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(UnidirectionalManyToManyEntity::CLASSNAME, $entity->embed->unidirectional[0]);
+        $this->assertInstanceOf(UnidirectionalManyToManyEntity::CLASSNAME, $entity->embed->unidirectional[1]);
+        $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectional[0]);
+        $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectional[1]);
+        $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectionalInversed[0]);
+        $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectionalInversed[1]);
+        $this->assertEquals($relatedUni2[0]->id, $entity->embed->unidirectional[0]->id);
+        $this->assertEquals($relatedUni2[1]->id, $entity->embed->unidirectional[1]->id);
+        $this->assertEquals($relatedBi2[0]->id, $entity->embed->bidirectional[0]->id);
+        $this->assertEquals($relatedBi2[1]->id, $entity->embed->bidirectional[1]->id);
+        $this->assertEquals($relatedBiInversed2[0]->id, $entity->embed->bidirectionalInversed[0]->id);
+        $this->assertEquals($relatedBiInversed2[1]->id, $entity->embed->bidirectionalInversed[1]->id);
+
+        // 4. check deleting works
+        $entityId = $entity->id;;
+        $this->_em->remove($entity);
+        $this->_em->flush();
+
+        $this->assertNull($this->_em->find(DDCEmbeddableManyToMany::CLASSNAME, $entityId));
+    }
+
+    public function testCRUDOneToOne()
+    {
+        $relatedUni = new UnidirectionalOneToOneEntity();
+        $relatedBi = new BidirectionalOneToOneEntity();
+        $relatedBiInversed = new BidirectionalOneToOneEntity();
+        $this->_em->persist($relatedUni);
+        $this->_em->persist($relatedBi);
+        $this->_em->persist($relatedBiInversed);
+
+        $entity = new DDCEmbeddableOneToOne();
+        $entity->embed->unidirectional = $relatedUni;
+        $entity->embed->bidirectional = $relatedBi;
+        $entity->embed->bidirectionalInversed = $relatedBiInversed;
+        $relatedBiInversed->propertyInversed = $entity;
+
+        $this->_em->persist($entity);
+
+        $this->_em->flush();
+
+        $this->_em->clear();
+
+        // 2. check loading value objects works
+        $entity = $this->_em->find(DDCEmbeddableOneToOne::CLASSNAME, $entity->id);
+
+        $this->assertInstanceOf(DDCEmbedOneToOne::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(UnidirectionalOneToOneEntity::CLASSNAME, $entity->embed->unidirectional);
+        $this->assertInstanceOf(BidirectionalOneToOneEntity::CLASSNAME, $entity->embed->bidirectional);
+        $this->assertInstanceOf(BidirectionalOneToOneEntity::CLASSNAME, $entity->embed->bidirectionalInversed);
+        $this->assertEquals($relatedUni->id, $entity->embed->unidirectional->id);
+        $this->assertEquals($relatedBi->id, $entity->embed->bidirectional->id);
+        $this->assertEquals($relatedBiInversed->id, $entity->embed->bidirectionalInversed->id);
+
+        // 3. check changing value objects works
+        $relatedUni2 = new UnidirectionalOneToOneEntity();
+        $relatedBi2 = new BidirectionalOneToOneEntity();
+        $relatedBiInversed2 = new BidirectionalOneToOneEntity();
+
+        $this->_em->persist($relatedUni2);
+        $this->_em->persist($relatedBi2);
+        $this->_em->persist($relatedBiInversed2);
+
+        $this->_em->remove($entity->embed->bidirectionalInversed);
+
+        //FuckFuckFuck. Flush remove entity to database to avoid unique constraint violation, because inserts runs before delete in flush
+        $this->_em->flush();
+
+        $entity->embed->unidirectional = $relatedUni2;
+        $entity->embed->bidirectional = $relatedBi2;
+        $entity->embed->bidirectionalInversed = $relatedBiInversed2;
+        $relatedBiInversed2->propertyInversed = $entity;
+
+        $this->_em->flush();
+
+        $this->_em->clear();
+
+        $entity = $this->_em->find(DDCEmbeddableOneToOne::CLASSNAME, $entity->id);
+
+        $this->assertInstanceOf(DDCEmbedOneToOne::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(UnidirectionalOneToOneEntity::CLASSNAME, $entity->embed->unidirectional);
+        $this->assertInstanceOf(BidirectionalOneToOneEntity::CLASSNAME, $entity->embed->bidirectional);
+        $this->assertInstanceOf(BidirectionalOneToOneEntity::CLASSNAME, $entity->embed->bidirectionalInversed);
+        $this->assertEquals($relatedUni2->id, $entity->embed->unidirectional->id);
+        $this->assertEquals($relatedBi2->id, $entity->embed->bidirectional->id);
+        $this->assertEquals($relatedBiInversed2->id, $entity->embed->bidirectionalInversed->id);
+
+        // 4. check deleting works
+        $entityId = $entity->id;;
+        $this->_em->remove($entity);
+        $this->_em->flush();
+
+        $this->assertNull($this->_em->find(DDCEmbeddableOneToOne::CLASSNAME, $entityId));
+    }
+
+    public function testLoadDqlManyToOne()
+    {
+        $relatedBidirectional = new BidirectionalOne2ManyEntity();
+        $relatedUnidirectional = new UnidirectionalOne2ManyEntity();
+        $this->_em->persist($relatedBidirectional);
+        $this->_em->persist($relatedUnidirectional);
+
+        $entities = [];
+
+        $entities[0] = new DDCEmbeddableManyToOne();
+        $entities[0]->embed->bidirectional = $relatedBidirectional;
+        $entities[0]->embed->unidirectional = $relatedUnidirectional;
+
+        $entities[1] = new DDCEmbeddableManyToOne();
+        $entities[1]->embed->bidirectional = $relatedBidirectional;
+        $entities[1]->embed->unidirectional = $relatedUnidirectional;
+
+        $entities[2] = new DDCEmbeddableManyToOne();
+        $entities[2]->embed->bidirectional = $relatedBidirectional;
+        $entities[2]->embed->unidirectional = $relatedUnidirectional;
+
+        $this->_em->persist($entities[0]);
+        $this->_em->persist($entities[1]);
+        $this->_em->persist($entities[2]);
 
         $this->_em->flush();
         $this->_em->clear();
 
-        $dql = "SELECT p FROM " . __NAMESPACE__ . "\DDC93Person p";
-        $persons = $this->_em->createQuery($dql)->getResult();
+        $dql = "
+          SELECT p, unidirectional, bidirectional FROM " . __NAMESPACE__ . "\DDCEmbeddableManyToOne p
+          INNER JOIN p.embed.unidirectional unidirectional
+          INNER JOIN p.embed.bidirectional bidirectional
+        ";
 
-        $this->assertCount(3, $persons);
-        foreach ($persons as $person) {
-            $this->assertInstanceOf(DDC93Address::CLASSNAME, $person->address);
-            $this->assertEquals('Tree', $person->address->street);
-            $this->assertEquals('12345', $person->address->zip);
-            $this->assertEquals('funkytown', $person->address->city);
-            $this->assertInstanceOf(DDC93Country::CLASSNAME, $person->address->country);
-            $this->assertEquals('United States of America', $person->address->country->name);
-        }
+        $found = $this->_em->createQuery($dql)->getResult();
 
-        $dql = "SELECT p FROM " . __NAMESPACE__ . "\DDC93Person p";
-        $persons = $this->_em->createQuery($dql)->getArrayResult();
+        $this->assertCount(3, $found);
 
-        foreach ($persons as $person) {
-            $this->assertEquals('Tree', $person['address.street']);
-            $this->assertEquals('12345', $person['address.zip']);
-            $this->assertEquals('funkytown', $person['address.city']);
-            $this->assertEquals('United States of America', $person['address.country.name']);
-        }
+        $this->assertEquals($entities[0]->embed->unidirectional->id, $found[0]->embed->unidirectional->id);
+        $this->assertEquals($entities[0]->embed->bidirectional->id, $found[0]->embed->bidirectional->id);
+
+        $this->assertEquals($entities[1]->embed->unidirectional->id, $found[1]->embed->unidirectional->id);
+        $this->assertEquals($entities[1]->embed->bidirectional->id, $found[1]->embed->bidirectional->id);
+
+        $this->assertEquals($entities[2]->embed->unidirectional->id, $found[2]->embed->unidirectional->id);
+        $this->assertEquals($entities[2]->embed->bidirectional->id, $found[2]->embed->bidirectional->id);
+
+        $found = $this->_em->createQuery($dql)->getArrayResult();
+
+        $this->assertCount(3, $found);
+
+        $this->assertEquals($entities[0]->embed->unidirectional->id, $found[0]['embed.unidirectional']['id']);
+        $this->assertEquals($entities[0]->embed->bidirectional->id, $found[0]['embed.bidirectional']['id']);
+
+        $this->assertEquals($entities[1]->embed->unidirectional->id, $found[1]['embed.unidirectional']['id']);
+        $this->assertEquals($entities[1]->embed->bidirectional->id, $found[1]['embed.bidirectional']['id']);
+
+        $this->assertEquals($entities[2]->embed->unidirectional->id, $found[2]['embed.unidirectional']['id']);
+        $this->assertEquals($entities[2]->embed->bidirectional->id, $found[2]['embed.bidirectional']['id']);
     }
 
-    /**
-     * @group dql
-     */
-    public function testDqlOnEmbeddedObjectsField()
+    public function testLoadDqlOneToMany()
     {
-        if ($this->isSecondLevelCacheEnabled) {
-            $this->markTestSkipped('SLC does not work with UPDATE/DELETE queries through EM.');
-        }
+        //Fuck, we give not empty table on test start
+        $this->_em->createQuery("DELETE FROM " . __NAMESPACE__ . "\ManyToOneEntity")->execute();
+        $entities = [];
+        $related = array(
+            new ManyToOneEntity(),
+            new ManyToOneEntity(),
+        );
+        $this->_em->persist($related[0]);
+        $this->_em->persist($related[1]);
 
-        $person = new DDC93Person('Johannes', new DDC93Address('Moo', '12345', 'Karlsruhe', new DDC93Country('Germany')));
-        $this->_em->persist($person);
-        $this->_em->flush($person);
+        $entities[0] = new DDCEmbeddableOneToMany();
+        $entities[0]->embed->entities = $related;
+        $related[0]->property = $entities[0];
+        $related[1]->property = $entities[0];
 
-        // SELECT
-        $selectDql = "SELECT p FROM " . __NAMESPACE__ ."\\DDC93Person p WHERE p.address.city = :city AND p.address.country.name = :country";
-        $loadedPerson = $this->_em->createQuery($selectDql)
-            ->setParameter('city', 'Karlsruhe')
-            ->setParameter('country', 'Germany')
-            ->getSingleResult();
-        $this->assertEquals($person, $loadedPerson);
+        $related = array(
+            new ManyToOneEntity(),
+            new ManyToOneEntity(),
+        );
+        $this->_em->persist($related[0]);
+        $this->_em->persist($related[1]);
 
-        $this->assertNull(
-            $this->_em->createQuery($selectDql)
-                ->setParameter('city', 'asdf')
-                ->setParameter('country', 'Germany')
-                ->getOneOrNullResult()
+        $entities[1] = new DDCEmbeddableOneToMany();
+        $entities[1]->embed->entities = $related;
+        $related[0]->property = $entities[1];
+        $related[1]->property = $entities[1];
+
+        $this->_em->persist($entities[0]);
+        $this->_em->persist($entities[1]);
+
+        $this->_em->flush();
+        $this->_em->clear();
+
+        $dql = "
+          SELECT p, entities FROM " . __NAMESPACE__ . "\DDCEmbeddableOneToMany p
+          INNER JOIN p.embed.entities entities
+        ";
+
+        $found = $this->_em->createQuery($dql)->getResult();
+
+        $this->assertCount(2, $found);
+
+        $this->assertEquals($entities[0]->embed->entities[0]->id, $found[0]->embed->entities[0]->id);
+        $this->assertEquals($entities[0]->embed->entities[1]->id, $found[0]->embed->entities[1]->id);
+
+        $this->assertEquals($entities[1]->embed->entities[0]->id, $found[1]->embed->entities[0]->id);
+        $this->assertEquals($entities[1]->embed->entities[1]->id, $found[1]->embed->entities[1]->id);
+
+        $found = $this->_em->createQuery($dql)->getArrayResult();
+
+        $this->assertCount(2, $found);
+
+        $this->assertEquals($entities[0]->embed->entities[0]->id, $found[0]['embed.entities'][0]['id']);
+        $this->assertEquals($entities[0]->embed->entities[1]->id, $found[0]['embed.entities'][1]['id']);
+
+        $this->assertEquals($entities[1]->embed->entities[0]->id, $found[1]['embed.entities'][0]['id']);
+        $this->assertEquals($entities[1]->embed->entities[1]->id, $found[1]['embed.entities'][1]['id']);
+    }
+
+    public function testLoadDqlManyToMany()
+    {
+        //Fuck, we give not empty table on test start
+        $this->_em->createQuery("DELETE FROM " . __NAMESPACE__ . "\UnidirectionalManyToManyEntity")->execute();
+        $this->_em->createQuery("DELETE FROM " . __NAMESPACE__ . "\BidirectionalManyToManyEntity")->execute();
+
+        $relatedUni = array(
+            new UnidirectionalManyToManyEntity(),
+            new UnidirectionalManyToManyEntity(),
         );
 
-        // UPDATE
-        $updateDql = "UPDATE " . __NAMESPACE__ . "\\DDC93Person p SET p.address.street = :street, p.address.country.name = :country WHERE p.address.city = :city";
-        $this->_em->createQuery($updateDql)
-            ->setParameter('street', 'Boo')
-            ->setParameter('country', 'DE')
-            ->setParameter('city', 'Karlsruhe')
-            ->execute();
-
-        $this->_em->refresh($person);
-        $this->assertEquals('Boo', $person->address->street);
-        $this->assertEquals('DE', $person->address->country->name);
-
-        // DELETE
-        $this->_em->createQuery("DELETE " . __NAMESPACE__ . "\\DDC93Person p WHERE p.address.city = :city AND p.address.country.name = :country")
-            ->setParameter('city', 'Karlsruhe')
-            ->setParameter('country', 'DE')
-            ->execute();
-
-        $this->_em->clear();
-        $this->assertNull($this->_em->find(__NAMESPACE__.'\\DDC93Person', $person->id));
-    }
-    
-    public function testPartialDqlOnEmbeddedObjectsField()
-    {
-        $person = new DDC93Person('Karl', new DDC93Address('Foo', '12345', 'Gosport', new DDC93Country('England')));
-        $this->_em->persist($person);
-        $this->_em->flush($person);
-        $this->_em->clear();
-        
-        // Prove that the entity was persisted correctly.
-        $dql = "SELECT p FROM " . __NAMESPACE__ ."\\DDC93Person p WHERE p.name = :name";
-    
-        $person = $this->_em->createQuery($dql)
-            ->setParameter('name', 'Karl')
-            ->getSingleResult();
-    
-        $this->assertEquals('Gosport', $person->address->city);
-        $this->assertEquals('Foo', $person->address->street);
-        $this->assertEquals('12345', $person->address->zip);
-        $this->assertEquals('England', $person->address->country->name);
-        
-        // Clear the EM and prove that the embeddable can be the subject of a partial query.
-        $this->_em->clear();
-    
-        $dql = "SELECT PARTIAL p.{id,address.city} FROM " . __NAMESPACE__ ."\\DDC93Person p WHERE p.name = :name";
-    
-        $person = $this->_em->createQuery($dql)
-            ->setParameter('name', 'Karl')
-            ->getSingleResult();
-        
-        // Selected field must be equal, all other fields must be null.
-        $this->assertEquals('Gosport', $person->address->city);
-        $this->assertNull($person->address->street);
-        $this->assertNull($person->address->zip);
-        $this->assertNull($person->address->country);
-        $this->assertNull($person->name);
-    }
-
-    public function testDqlWithNonExistentEmbeddableField()
-    {
-        $this->setExpectedException('Doctrine\ORM\Query\QueryException', 'no field or association named address.asdfasdf');
-
-        $this->_em->createQuery("SELECT p FROM " . __NAMESPACE__ . "\\DDC93Person p WHERE p.address.asdfasdf IS NULL")
-            ->execute();
-    }
-    
-    public function testPartialDqlWithNonExistentEmbeddableField()
-    {
-        $this->setExpectedException('Doctrine\ORM\Query\QueryException', "no mapped field named 'address.asdfasdf'");
-        
-        $this->_em->createQuery("SELECT PARTIAL p.{id,address.asdfasdf} FROM " . __NAMESPACE__ . "\\DDC93Person p")
-            ->execute();
-    }
-
-    public function testEmbeddableWithInheritance()
-    {
-        $car = new DDC93Car(new DDC93Address('Foo', '12345', 'Asdf'));
-        $this->_em->persist($car);
-        $this->_em->flush($car);
-
-        $reloadedCar = $this->_em->find(__NAMESPACE__.'\\DDC93Car', $car->id);
-        $this->assertEquals($car, $reloadedCar);
-    }
-
-    public function testInlineEmbeddableWithPrefix()
-    {
-        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDC3028PersonWithPrefix');
-
-        $this->assertEquals('foobar_id', $metadata->getColumnName('id.id'));
-        $this->assertEquals('bloo_foo_id', $metadata->getColumnName('nested.nestedWithPrefix.id'));
-        $this->assertEquals('bloo_nestedWithEmptyPrefix_id', $metadata->getColumnName('nested.nestedWithEmptyPrefix.id'));
-        $this->assertEquals('bloo_id', $metadata->getColumnName('nested.nestedWithPrefixFalse.id'));
-    }
-
-    public function testInlineEmbeddableEmptyPrefix()
-    {
-        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDC3028PersonEmptyPrefix');
-
-        $this->assertEquals('id_id', $metadata->getColumnName('id.id'));
-        $this->assertEquals('nested_foo_id', $metadata->getColumnName('nested.nestedWithPrefix.id'));
-        $this->assertEquals('nested_nestedWithEmptyPrefix_id', $metadata->getColumnName('nested.nestedWithEmptyPrefix.id'));
-        $this->assertEquals('nested_id', $metadata->getColumnName('nested.nestedWithPrefixFalse.id'));
-    }
-
-    public function testInlineEmbeddablePrefixFalse()
-    {
-        $expectedColumnName = 'id';
-
-        $actualColumnName = $this->_em
-            ->getClassMetadata(__NAMESPACE__ . '\DDC3028PersonPrefixFalse')
-            ->getColumnName('id.id');
-
-        $this->assertEquals($expectedColumnName, $actualColumnName);
-    }
-
-    public function testInlineEmbeddableInMappedSuperClass()
-    {
-        $isFieldMapped = $this->_em
-            ->getClassMetadata(__NAMESPACE__ . '\DDC3027Dog')
-            ->hasField('address.street');
-
-        $this->assertTrue($isFieldMapped);
-    }
-
-    public function testInlineEmbeddableManyToMany()
-    {
-        $isFieldMapped = $this->_em
-            ->getClassMetadata(__NAMESPACE__ . '\DDC3027Dog')
-            ->hasField('address.street');
-
-        $this->assertTrue($isFieldMapped);
-    }
-
-    /**
-     * @dataProvider getInfiniteEmbeddableNestingData
-     */
-    public function testThrowsExceptionOnInfiniteEmbeddableNesting($embeddableClassName, $declaredEmbeddableClassName)
-    {
-        $this->setExpectedException(
-            'Doctrine\ORM\Mapping\MappingException',
-            sprintf(
-                'Infinite nesting detected for embedded property %s::nested. ' .
-                'You cannot embed an embeddable from the same type inside an embeddable.',
-                __NAMESPACE__ . '\\' . $declaredEmbeddableClassName
-            )
+        $relatedBi = array(
+            new BidirectionalManyToManyEntity(),
+            new BidirectionalManyToManyEntity(),
         );
 
-        $this->_schemaTool->createSchema(array(
-            $this->_em->getClassMetadata(__NAMESPACE__ . '\\' . $embeddableClassName),
-        ));
-    }
-
-    public function getInfiniteEmbeddableNestingData()
-    {
-        return array(
-            array('DDCInfiniteNestingEmbeddable', 'DDCInfiniteNestingEmbeddable'),
-            array('DDCNestingEmbeddable1', 'DDCNestingEmbeddable4'),
+        $relatedBiInversed = array(
+            new BidirectionalManyToManyEntity(),
+            new BidirectionalManyToManyEntity(),
         );
-    }
-}
 
+        $this->_em->persist($relatedUni[0]);
+        $this->_em->persist($relatedUni[1]);
+        $this->_em->persist($relatedBi[0]);
+        $this->_em->persist($relatedBi[1]);
+        $this->_em->persist($relatedBiInversed[0]);
+        $this->_em->persist($relatedBiInversed[1]);
 
-/**
- * @Entity
- */
-class DDC93Person
-{
-    const CLASSNAME = __CLASS__;
+        $entities[0] = new DDCEmbeddableManyToMany();
+        $entities[0]->embed->unidirectional = $relatedUni;
+        $entities[0]->embed->bidirectional = $relatedBi;
+        $entities[0]->embed->bidirectionalInversed = $relatedBiInversed;
+        $relatedBiInversed[0]->propertyInversed = array($entities[0]);
+        $relatedBiInversed[1]->propertyInversed = array($entities[0]);
 
-    /** @Id @GeneratedValue @Column(type="integer") */
-    public $id;
+        $this->_em->persist($entities[0]);
 
-    /** @Column(type="string") */
-    public $name;
+        $relatedUni = array(
+            new UnidirectionalManyToManyEntity(),
+            new UnidirectionalManyToManyEntity(),
+        );
 
-    /** @Embedded(class="DDC93Address") */
-    public $address;
+        $relatedBi = array(
+            new BidirectionalManyToManyEntity(),
+            new BidirectionalManyToManyEntity(),
+        );
 
-    /** @Embedded(class = "DDC93Timestamps") */
-    public $timestamps;
+        $relatedBiInversed = array(
+            new BidirectionalManyToManyEntity(),
+            new BidirectionalManyToManyEntity(),
+        );
 
-    public function __construct($name = null, DDC93Address $address = null)
-    {
-        $this->name = $name;
-        $this->address = $address;
-        $this->timestamps = new DDC93Timestamps(new \DateTime);
-    }
-}
+        $this->_em->persist($relatedUni[0]);
+        $this->_em->persist($relatedUni[1]);
+        $this->_em->persist($relatedBi[0]);
+        $this->_em->persist($relatedBi[1]);
+        $this->_em->persist($relatedBiInversed[0]);
+        $this->_em->persist($relatedBiInversed[1]);
 
-/**
- * @Embeddable
- */
-class DDC93Timestamps
-{
-    /** @Column(type = "datetime") */
-    public $createdAt;
+        $entities[1] = new DDCEmbeddableManyToMany();
+        $entities[1]->embed->unidirectional = $relatedUni;
+        $entities[1]->embed->bidirectional = $relatedBi;
+        $entities[1]->embed->bidirectionalInversed = $relatedBiInversed;
+        $relatedBiInversed[0]->propertyInversed = array($entities[1]);
+        $relatedBiInversed[1]->propertyInversed = array($entities[1]);
 
-    public function __construct(\DateTime $createdAt)
-    {
-        $this->createdAt = $createdAt;
-    }
-}
+        $this->_em->persist($entities[1]);
 
-/**
- * @Entity
- *
- * @InheritanceType("SINGLE_TABLE")
- * @DiscriminatorColumn(name = "t", type = "string", length = 10)
- * @DiscriminatorMap({
- *     "v" = "Doctrine\Tests\ORM\Functional\DDC93Car",
- * })
- */
-abstract class DDC93Vehicle
-{
-    /** @Id @GeneratedValue(strategy = "AUTO") @Column(type = "integer") */
-    public $id;
+        $this->_em->flush();
+        $this->_em->clear();
 
-    /** @Embedded(class = "DDC93Address") */
-    public $address;
+        $dql = "
+          SELECT p, unidirectional, bidirectional, bidirectionalInversed FROM " . __NAMESPACE__ . "\DDCEmbeddableManyToMany p
+          INNER JOIN p.embed.unidirectional unidirectional
+          INNER JOIN p.embed.bidirectional bidirectional
+          INNER JOIN p.embed.bidirectionalInversed bidirectionalInversed
+        ";
 
-    public function __construct(DDC93Address $address)
-    {
-        $this->address = $address;
-    }
-}
+        $found = $this->_em->createQuery($dql)->getResult();
 
-/**
- * @Entity
- */
-class DDC93Car extends DDC93Vehicle
-{
-}
+        $this->assertCount(2, $found);
 
-/**
- * @Embeddable
- */
-class DDC93Country
-{
-    const CLASSNAME = __CLASS__;
+        $this->assertEquals($entities[0]->embed->unidirectional[0]->id, $found[0]->embed->unidirectional[0]->id);
+        $this->assertEquals($entities[0]->embed->unidirectional[1]->id, $found[0]->embed->unidirectional[1]->id);
+        $this->assertEquals($entities[0]->embed->bidirectional[0]->id, $found[0]->embed->bidirectional[0]->id);
+        $this->assertEquals($entities[0]->embed->bidirectional[1]->id, $found[0]->embed->bidirectional[1]->id);
+        $this->assertEquals($entities[0]->embed->bidirectionalInversed[0]->id, $found[0]->embed->bidirectionalInversed[0]->id);
+        $this->assertEquals($entities[0]->embed->bidirectionalInversed[1]->id, $found[0]->embed->bidirectionalInversed[1]->id);
 
-    /**
-     * @Column(type="string", nullable=true)
-     */
-    public $name;
+        $this->assertEquals($entities[1]->embed->unidirectional[0]->id, $found[1]->embed->unidirectional[0]->id);
+        $this->assertEquals($entities[1]->embed->unidirectional[1]->id, $found[1]->embed->unidirectional[1]->id);
+        $this->assertEquals($entities[1]->embed->bidirectional[0]->id, $found[1]->embed->bidirectional[0]->id);
+        $this->assertEquals($entities[1]->embed->bidirectional[1]->id, $found[1]->embed->bidirectional[1]->id);
+        $this->assertEquals($entities[1]->embed->bidirectionalInversed[0]->id, $found[1]->embed->bidirectionalInversed[0]->id);
+        $this->assertEquals($entities[1]->embed->bidirectionalInversed[1]->id, $found[1]->embed->bidirectionalInversed[1]->id);
 
-    public function __construct($name = null)
-    {
-        $this->name = $name;
-    }
-}
+        $found = $this->_em->createQuery($dql)->getArrayResult();
 
-/**
- * @Embeddable
- */
-class DDC93Address
-{
-    const CLASSNAME = __CLASS__;
+        $this->assertCount(2, $found);
 
-    /**
-     * @Column(type="string")
-     */
-    public $street;
-    /**
-     * @Column(type="string")
-     */
-    public $zip;
-    /**
-     * @Column(type="string")
-     */
-    public $city;
-    /** @Embedded(class = "DDC93Country") */
-    public $country;
+        $this->assertEquals($entities[0]->embed->unidirectional[0]->id, $found[0]['embed.unidirectional'][0]['id']);
+        $this->assertEquals($entities[0]->embed->unidirectional[1]->id, $found[0]['embed.unidirectional'][1]['id']);
+        $this->assertEquals($entities[0]->embed->bidirectional[0]->id, $found[0]['embed.bidirectional'][0]['id']);
+        $this->assertEquals($entities[0]->embed->bidirectional[1]->id, $found[0]['embed.bidirectional'][1]['id']);
+        $this->assertEquals($entities[0]->embed->bidirectionalInversed[0]->id, $found[0]['embed.bidirectionalInversed'][0]['id']);
+        $this->assertEquals($entities[0]->embed->bidirectionalInversed[1]->id, $found[0]['embed.bidirectionalInversed'][1]['id']);
 
-    public function __construct($street = null, $zip = null, $city = null, DDC93Country $country = null)
-    {
-        $this->street = $street;
-        $this->zip = $zip;
-        $this->city = $city;
-        $this->country = $country;
-    }
-}
+        $this->assertEquals($entities[1]->embed->unidirectional[0]->id, $found[1]['embed.unidirectional'][0]['id']);
+        $this->assertEquals($entities[1]->embed->unidirectional[1]->id, $found[1]['embed.unidirectional'][1]['id']);
+        $this->assertEquals($entities[1]->embed->bidirectional[0]->id, $found[1]['embed.bidirectional'][0]['id']);
+        $this->assertEquals($entities[1]->embed->bidirectional[1]->id, $found[1]['embed.bidirectional'][1]['id']);
+        $this->assertEquals($entities[1]->embed->bidirectionalInversed[0]->id, $found[1]['embed.bidirectionalInversed'][0]['id']);
+        $this->assertEquals($entities[1]->embed->bidirectionalInversed[1]->id, $found[1]['embed.bidirectionalInversed'][1]['id']);
 
-/** @Entity */
-class DDC93Customer
-{
-    /** @Id @GeneratedValue @Column(type="integer") */
-    private $id;
-
-    /** @Embedded(class = "DDC93ContactInfo", columnPrefix = "contact_info_") */
-    private $contactInfo;
-}
-
-/** @Embeddable */
-class DDC93ContactInfo
-{
-    const CLASSNAME = __CLASS__;
-
-    /**
-     * @Column(type="string")
-     */
-    public $email;
-    /** @Embedded(class = "DDC93Address") */
-    public $address;
-}
-
-/**
- * @Entity
- */
-class DDC3028PersonWithPrefix
-{
-    const CLASSNAME = __CLASS__;
-
-    /** @Embedded(class="DDC3028Id", columnPrefix = "foobar_") */
-    public $id;
-
-    /** @Embedded(class="DDC3028NestedEmbeddable", columnPrefix = "bloo_") */
-    public $nested;
-
-    public function __construct(DDC3028Id $id = null, DDC3028NestedEmbeddable $nested = null)
-    {
-        $this->id = $id;
-        $this->nested = $nested;
     }
 }
 
 /**
  * @Entity
  */
-class DDC3028PersonEmptyPrefix
+class BidirectionalOne2ManyEntity
 {
     const CLASSNAME = __CLASS__;
 
-    /** @Embedded(class="DDC3028Id", columnPrefix = "") */
-    public $id;
-
-    /** @Embedded(class="DDC3028NestedEmbeddable", columnPrefix = "") */
-    public $nested;
-
-    public function __construct(DDC3028Id $id = null, DDC3028NestedEmbeddable $nested = null)
-    {
-        $this->id = $id;
-        $this->nested = $nested;
-    }
-}
-
-/**
- * @Entity
- */
-class DDC3028PersonPrefixFalse
-{
-    const CLASSNAME = __CLASS__;
-
-    /** @Embedded(class="DDC3028Id", columnPrefix = false) */
-    public $id;
-
-    public function __construct(DDC3028Id $id = null)
-    {
-        $this->id = $id;
-    }
-}
-
-/**
- * @Embeddable
- */
-class DDC3028Id
-{
-    const CLASSNAME = __CLASS__;
-
-    /**
-     * @Id @Column(type="string")
-     */
-    public $id;
-
-    public function __construct($id = null)
-    {
-        $this->id = $id;
-    }
-}
-
-/**
- * @Embeddable
- */
-class DDC3028NestedEmbeddable
-{
-    const CLASSNAME = __CLASS__;
-
-    /** @Embedded(class="DDC3028Id", columnPrefix = "foo_") */
-    public $nestedWithPrefix;
-
-    /** @Embedded(class="DDC3028Id", columnPrefix = "") */
-    public $nestedWithEmptyPrefix;
-
-    /** @Embedded(class="DDC3028Id", columnPrefix = false) */
-    public $nestedWithPrefixFalse;
-
-    public function __construct(
-        DDC3028Id $nestedWithPrefix = null,
-        DDC3028Id $nestedWithEmptyPrefix = null,
-        DDC3028Id $nestedWithPrefixFalse = null
-    ) {
-        $this->nestedWithPrefix = $nestedWithPrefix;
-        $this->nestedWithEmptyPrefix = $nestedWithEmptyPrefix;
-        $this->nestedWithPrefixFalse = $nestedWithPrefixFalse;
-    }
-}
-
-/**
- * @MappedSuperclass
- */
-abstract class DDC3027Animal
-{
-    /** @Id @GeneratedValue(strategy = "AUTO") @Column(type = "integer") */
-    public $id;
-
-    /** @Embedded(class = "DDC93Address") */
-    public $address;
-}
-
-/**
- * @Entity
- */
-class DDC3027Dog extends DDC3027Animal
-{
-}
-
-/**
- * @Embeddable
- */
-class DDCInfiniteNestingEmbeddable
-{
-    /** @Embedded(class="DDCInfiniteNestingEmbeddable") */
-    public $nested;
-}
-
-/**
- * @Embeddable
- */
-class DDCNestingEmbeddable1
-{
-    /** @Embedded(class="DDC3028Id") */
-    public $id1;
-
-    /** @Embedded(class="DDC3028Id") */
-    public $id2;
-
-    /** @Embedded(class="DDCNestingEmbeddable2") */
-    public $nested;
-}
-
-/**
- * @Embeddable
- */
-class DDCNestingEmbeddable2
-{
-    /** @Embedded(class="DDC3028Id") */
-    public $id1;
-
-    /** @Embedded(class="DDC3028Id") */
-    public $id2;
-
-    /** @Embedded(class="DDCNestingEmbeddable3") */
-    public $nested;
-}
-
-/**
- * @Embeddable
- */
-class DDCNestingEmbeddable3
-{
-    /** @Embedded(class="DDC3028Id") */
-    public $id1;
-
-    /** @Embedded(class="DDC3028Id") */
-    public $id2;
-
-    /** @Embedded(class="DDCNestingEmbeddable4") */
-    public $nested;
-}
-
-/**
- * @Embeddable
- */
-class DDCNestingEmbeddable4
-{
-    /** @Embedded(class="DDC3028Id") */
-    public $id1;
-
-    /** @Embedded(class="DDC3028Id") */
-    public $id2;
-
-    /** @Embedded(class="DDCNestingEmbeddable1") */
-    public $nested;
-}
-
-/**
- * @Entity
- */
-class BidirectionalOne2Many
-{
     /**
      * @Id
      * @Column(type="integer")
@@ -661,16 +628,18 @@ class BidirectionalOne2Many
 
     /**
      * @var int
-     * @OneToMany(targetEntity="DDCEmbedManyToOne", mappedBy="bidirectional")
+     * @OneToMany(targetEntity="DDCEmbeddableManyToOne", mappedBy="embed.bidirectional")
      */
-    private $property;
+    public $property;
 }
 
 /**
  * @Entity
  */
-class UnidirectionalOne2Many
+class UnidirectionalOne2ManyEntity
 {
+    const CLASSNAME = __CLASS__;
+
     /**
      * @Id
      * @Column(type="integer")
@@ -684,17 +653,17 @@ class UnidirectionalOne2Many
  */
 class DDCEmbedManyToOne
 {
-    /**
-     * @var int
-     * @ManyToOne(targetEntity="UnidirectionalOne2Many")
-     */
-    private $unidirectional;
+    const CLASSNAME = __CLASS__;
 
     /**
-     * @var int
-     * @ManyToOne(targetEntity = "BidirectionalOne2Many", inversedBy = "property")
+     * @ManyToOne(targetEntity="UnidirectionalOne2ManyEntity")
      */
-    private $bidirectional;
+    public $unidirectional;
+
+    /**
+     * @ManyToOne(targetEntity = "BidirectionalOne2ManyEntity", inversedBy = "property")
+     */
+    public $bidirectional;
 }
 
 /**
@@ -702,6 +671,8 @@ class DDCEmbedManyToOne
  */
 class DDCEmbeddableManyToOne
 {
+    const CLASSNAME = __CLASS__;
+
     /**
      * @Id
      * @Column(type="integer")
@@ -710,16 +681,258 @@ class DDCEmbeddableManyToOne
     public $id;
 
     /**
-     * @var DDC3480Skills
      * @Embedded(class = "DDCEmbedManyToOne", columnPrefix = false)
      */
-    private $embed;
+    public $embed;
+
+    public function __construct()
+    {
+        $this->embed = new DDCEmbedManyToOne();
+    }
+}
+
+/**
+ * @Entity
+ */
+class ManyToOneEntity
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @Id()
+     * @Column(type="integer")
+     * @GeneratedValue(strategy="AUTO")
+     */
+    public $id;
+
+    /**
+     * @var int
+     * @ManyToOne(targetEntity="DDCEmbeddableOneToMany", inversedBy="embed.entities")
+     */
+    public $property;
+}
+
+
+/**
+ * @Embeddable()
+ */
+class DDCEmbedOneToMany
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @OneToMany(targetEntity="ManyToOneEntity", mappedBy="property")
+     */
+    public $entities;
+}
+
+/**
+ * @Entity
+ */
+class DDCEmbeddableOneToMany
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @Id
+     * @Column(type="integer")
+     * @GeneratedValue(strategy="AUTO")
+     */
+    public $id;
+
+    /**
+     * @Embedded(class = "DDCEmbedOneToMany", columnPrefix = false)
+     */
+    public $embed;
+
+    public function __construct()
+    {
+        $this->embed = new DDCEmbedOneToMany();
+    }
+}
+
+/**
+ * @Entity
+ */
+class UnidirectionalManyToManyEntity
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @Id()
+     * @Column(type="integer")
+     * @GeneratedValue(strategy="AUTO")
+     */
+    public $id;
+}
+
+/**
+ * @Entity
+ */
+class BidirectionalManyToManyEntity
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @Id()
+     * @Column(type="integer")
+     * @GeneratedValue(strategy="AUTO")
+     */
+    public $id;
+
+    /**
+     * @var int
+     * @ManyToMany(targetEntity="DDCEmbeddableManyToMany", mappedBy="embed.bidirectional")
+     */
+    public $property;
+
+    /**
+     * @var int
+     * @ManyToMany(targetEntity="DDCEmbeddableManyToMany", inversedBy="embed.bidirectionalInversed")
+     */
+    public $propertyInversed;
+}
+
+/**
+ * @Embeddable()
+ */
+class DDCEmbedManyToMany
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @ManyToMany(targetEntity="UnidirectionalManyToManyEntity")
+     */
+    public $unidirectional;
+
+    /**
+     * @ManyToMany(targetEntity="BidirectionalManyToManyEntity", inversedBy="property")
+     */
+    public $bidirectional;
+
+    /**
+     * @ManyToMany(targetEntity="BidirectionalManyToManyEntity", mappedBy="propertyInversed")
+     */
+    public $bidirectionalInversed;
+}
+
+/**
+ * @Entity
+ */
+class DDCEmbeddableManyToMany
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @Id
+     * @Column(type="integer")
+     * @GeneratedValue(strategy="AUTO")
+     */
+    public $id;
+
+    /**
+     * @Embedded(class = "DDCEmbedManyToMany", columnPrefix = false)
+     */
+    public $embed;
 
     /**
      * DDC3480Vacancy constructor.
      */
     public function __construct()
     {
-        $this->embed = new DDCEmbedManyToOne();
+        $this->embed = new DDCEmbedManyToMany();
+    }
+}
+
+/**
+ * @Entity
+ */
+class UnidirectionalOneToOneEntity
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @Id()
+     * @Column(type="integer")
+     * @GeneratedValue(strategy="AUTO")
+     */
+    public $id;
+}
+
+/**
+ * @Entity
+ */
+class BidirectionalOneToOneEntity
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @Id()
+     * @Column(type="integer")
+     * @GeneratedValue(strategy="AUTO")
+     */
+    public $id;
+
+    /**
+     * @var int
+     * @OneToOne(targetEntity="DDCEmbeddableOneToOne", mappedBy="embed.bidirectional")
+     */
+    public $property;
+
+    /**
+     * @var int
+     * @OneToOne(targetEntity="DDCEmbeddableOneToOne", inversedBy="embed.bidirectionalInversed")
+     */
+    public $propertyInversed;
+}
+
+/**
+ * @Embeddable()
+ */
+class DDCEmbedOneToOne
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @OneToOne(targetEntity="UnidirectionalOneToOneEntity")
+     */
+    public $unidirectional;
+
+    /**
+     * @OneToOne(targetEntity="BidirectionalOneToOneEntity", inversedBy="property")
+     */
+    public $bidirectional;
+
+    /**
+     * @OneToOne(targetEntity="BidirectionalOneToOneEntity", mappedBy="propertyInversed")
+     */
+    public $bidirectionalInversed;
+}
+
+/**
+ * @Entity
+ */
+class DDCEmbeddableOneToOne
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @Id
+     * @Column(type="integer")
+     * @GeneratedValue(strategy="AUTO")
+     */
+    public $id;
+
+    /**
+     * @Embedded(class = "DDCEmbedOneToOne", columnPrefix = false)
+     */
+    public $embed;
+
+    /**
+     * DDC3480Vacancy constructor.
+     */
+    public function __construct()
+    {
+        $this->embed = new DDCEmbedOneToOne();
     }
 }

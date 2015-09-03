@@ -3295,6 +3295,9 @@ class ClassMetadataInfo implements ClassMetadata
             $associationMapping['fieldName'] = $property . "." . $associationMapping['fieldName'];
             $associationMapping['sourceEntity'] = $this->name;
 
+
+            //@todo: check support bi-directional relationships
+
             if ($associationMapping['type'] === self::MANY_TO_ONE) {
                 if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
                     $associationMapping['columnName'] = $this->embeddedClasses[$property]['columnPrefix'] . $associationMapping['columnName'];
@@ -3312,8 +3315,11 @@ class ClassMetadataInfo implements ClassMetadata
                 $this->mapManyToOne($associationMapping);
             } else if ($associationMapping['type'] === self::ONE_TO_MANY) {
                 //@todo: prefix columns on remote entity
+                //добавить опцию non-owning-side relation prefix for mappedBy
                 $this->mapOneToMany($associationMapping);
             } else if ($associationMapping['type'] === self::MANY_TO_MANY) {
+                //@todo: prefix for bidirectional many2many
+                //добавить опцию non-owning-side relation prefix for joinTable.name
                 if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
                     $associationMapping['columnName'] = $this->embeddedClasses[$property]['columnPrefix'] . $associationMapping['columnName'];
                 } elseif ($this->embeddedClasses[$property]['columnPrefix'] !== false) {
