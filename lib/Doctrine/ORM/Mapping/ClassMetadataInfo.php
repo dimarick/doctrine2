@@ -3295,7 +3295,30 @@ class ClassMetadataInfo implements ClassMetadata
             $associationMapping['fieldName'] = $property . "." . $associationMapping['fieldName'];
             $associationMapping['sourceEntity'] = $this->name;
 
+            if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
+                $fieldMapping['columnName'] = $this->embeddedClasses[$property]['columnPrefix'] . $fieldMapping['columnName'];
+            } elseif ($this->embeddedClasses[$property]['columnPrefix'] !== false) {
+                $fieldMapping['columnName'] = $this->namingStrategy
+                    ->embeddedFieldToColumnName(
+                        $property,
+                        $fieldMapping['columnName'],
+                        $this->reflClass->name,
+                        $embeddable->reflClass->name
+                    );
+            }
+
             if ($associationMapping['type'] === self::MANY_TO_ONE) {
+                if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
+                    $associationMapping['columnName'] = $this->embeddedClasses[$property]['columnPrefix'] . $associationMapping['columnName'];
+                } elseif ($this->embeddedClasses[$property]['columnPrefix'] !== false) {
+                    $fieldMapping['columnName'] = $this->namingStrategy
+                        ->embeddedFieldToColumnName(
+                            $property,
+                            $associationMapping['columnName'],
+                            $this->reflClass->name,
+                            $embeddable->reflClass->name
+                        );
+                }
                 $this->mapManyToOne($associationMapping);
             } else if ($associationMapping['type'] === self::ONE_TO_MANY) {
                 $this->mapOneToMany($associationMapping);
