@@ -3295,9 +3295,15 @@ class ClassMetadataInfo implements ClassMetadata
             $associationMapping['fieldName'] = $property . "." . $associationMapping['fieldName'];
             $associationMapping['sourceEntity'] = $this->name;
 
-            $this->assertFieldNotMapped($associationMapping['fieldName']);
-
-            $this->associationMappings[$associationMapping['fieldName']] = $associationMapping;
+            if ($associationMapping['type'] === self::MANY_TO_ONE) {
+                $this->mapManyToOne($associationMapping);
+            } else if ($associationMapping['type'] === self::ONE_TO_MANY) {
+                $this->mapOneToMany($associationMapping);
+            } else if ($associationMapping['type'] === self::MANY_TO_MANY) {
+                $this->mapManyToMany($associationMapping);
+            } else if ($associationMapping['type'] === self::ONE_TO_ONE) {
+                $this->mapOneToOne($associationMapping);
+            }
         }
     }
 
