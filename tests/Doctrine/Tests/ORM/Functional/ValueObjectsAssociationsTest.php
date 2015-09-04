@@ -12,7 +12,7 @@ use Doctrine\ORM\Mapping\OneToMany;
 use Doctrine\ORM\Mapping\OneToOne;
 
 /**
- * @group DDC-93
+ *
  */
 class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 {
@@ -22,7 +22,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         parent::setUp();
 
         try {
-            $this->_schemaTool->createSchema(array(
+            $classes = array(
                 $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToOne'),
                 $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableOneToMany'),
                 $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToMany'),
@@ -34,7 +34,9 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
                 $this->_em->getClassMetadata(__NAMESPACE__ . '\BidirectionalManyToManyEntity'),
                 $this->_em->getClassMetadata(__NAMESPACE__ . '\UnidirectionalOneToOneEntity'),
                 $this->_em->getClassMetadata(__NAMESPACE__ . '\BidirectionalOneToOneEntity'),
-            ));
+            );
+            $this->_schemaTool->dropSchema($classes);
+            $this->_schemaTool->createSchema($classes);
         } catch(\Exception $e) {
         }
     }
@@ -436,8 +438,6 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
     public function testLoadDqlOneToMany()
     {
-        //Fuck, we give not empty table on test start
-        $this->_em->createQuery("DELETE FROM " . __NAMESPACE__ . "\ManyToOneEntity")->execute();
         $entities = [];
         $related = array(
             new ManyToOneEntity(),
@@ -497,10 +497,6 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
     public function testLoadDqlManyToMany()
     {
-        //Fuck, we give not empty table on test start
-        $this->_em->createQuery("DELETE FROM " . __NAMESPACE__ . "\UnidirectionalManyToManyEntity")->execute();
-        $this->_em->createQuery("DELETE FROM " . __NAMESPACE__ . "\BidirectionalManyToManyEntity")->execute();
-
         $relatedUni = array(
             new UnidirectionalManyToManyEntity(),
             new UnidirectionalManyToManyEntity(),
@@ -608,8 +604,279 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->assertEquals($entities[1]->embed->bidirectional[1]->id, $found[1]['embed.bidirectional'][1]['id']);
         $this->assertEquals($entities[1]->embed->bidirectionalInversed[0]->id, $found[1]['embed.bidirectionalInversed'][0]['id']);
         $this->assertEquals($entities[1]->embed->bidirectionalInversed[1]->id, $found[1]['embed.bidirectionalInversed'][1]['id']);
-
     }
+
+    public function testLoadDqlOneToOne()
+    {
+        $relatedUni = new UnidirectionalOneToOneEntity();
+        $relatedBi = new BidirectionalOneToOneEntity();
+        $relatedBiInversed = new BidirectionalOneToOneEntity();
+        $this->_em->persist($relatedUni);
+        $this->_em->persist($relatedBi);
+        $this->_em->persist($relatedBiInversed);
+
+        $entities[0] = new DDCEmbeddableOneToOne();
+        $entities[0]->embed->unidirectional = $relatedUni;
+        $entities[0]->embed->bidirectional = $relatedBi;
+        $entities[0]->embed->bidirectionalInversed = $relatedBiInversed;
+        $relatedBiInversed->propertyInversed = $entities[0];
+
+        $this->_em->persist($entities[0]);
+
+        $relatedUni = new UnidirectionalOneToOneEntity();
+        $relatedBi = new BidirectionalOneToOneEntity();
+        $relatedBiInversed = new BidirectionalOneToOneEntity();
+        $this->_em->persist($relatedUni);
+        $this->_em->persist($relatedBi);
+        $this->_em->persist($relatedBiInversed);
+
+        $entities[1] = new DDCEmbeddableOneToOne();
+        $entities[1]->embed->unidirectional = $relatedUni;
+        $entities[1]->embed->bidirectional = $relatedBi;
+        $entities[1]->embed->bidirectionalInversed = $relatedBiInversed;
+        $relatedBiInversed->propertyInversed = $entities[1];
+
+        $this->_em->persist($entities[1]);
+
+        $this->_em->flush();
+        $this->_em->clear();
+
+        $dql = "
+          SELECT p, unidirectional, bidirectional, bidirectionalInversed FROM " . __NAMESPACE__ . "\DDCEmbeddableOneToOne p
+          INNER JOIN p.embed.unidirectional unidirectional
+          INNER JOIN p.embed.bidirectional bidirectional
+          INNER JOIN p.embed.bidirectionalInversed bidirectionalInversed
+        ";
+
+        $found = $this->_em->createQuery($dql)->getResult();
+
+        $this->assertCount(2, $found);
+
+        $this->assertEquals($entities[0]->embed->unidirectional->id, $found[0]->embed->unidirectional->id);
+        $this->assertEquals($entities[0]->embed->bidirectional->id, $found[0]->embed->bidirectional->id);
+        $this->assertEquals($entities[0]->embed->bidirectionalInversed->id, $found[0]->embed->bidirectionalInversed->id);
+
+        $this->assertEquals($entities[1]->embed->unidirectional->id, $found[1]->embed->unidirectional->id);
+        $this->assertEquals($entities[1]->embed->bidirectional->id, $found[1]->embed->bidirectional->id);
+        $this->assertEquals($entities[1]->embed->bidirectionalInversed->id, $found[1]->embed->bidirectionalInversed->id);
+
+        $found = $this->_em->createQuery($dql)->getArrayResult();
+
+        $this->assertCount(2, $found);
+
+        $this->assertEquals($entities[0]->embed->unidirectional->id, $found[0]['embed.unidirectional']['id']);
+        $this->assertEquals($entities[0]->embed->bidirectional->id, $found[0]['embed.bidirectional']['id']);
+        $this->assertEquals($entities[0]->embed->bidirectionalInversed->id, $found[0]['embed.bidirectionalInversed']['id']);
+
+        $this->assertEquals($entities[1]->embed->unidirectional->id, $found[1]['embed.unidirectional']['id']);
+        $this->assertEquals($entities[1]->embed->bidirectional->id, $found[1]['embed.bidirectional']['id']);
+        $this->assertEquals($entities[1]->embed->bidirectionalInversed->id, $found[1]['embed.bidirectionalInversed']['id']);
+    }
+
+    /**
+     * @group dql
+     */
+    public function testDqlOnEmbeddedObjectsManyToOne()
+    {
+        if ($this->isSecondLevelCacheEnabled) {
+            $this->markTestSkipped('SLC does not work with UPDATE/DELETE queries through EM.');
+        }
+
+        $relatedBidirectional = new BidirectionalOne2ManyEntity();
+        $relatedUnidirectional = new UnidirectionalOne2ManyEntity();
+        $this->_em->persist($relatedBidirectional);
+        $this->_em->persist($relatedUnidirectional);
+
+        $entity = new DDCEmbeddableManyToOne();
+        $entity->embed->bidirectional = $relatedBidirectional;
+        $entity->embed->unidirectional = $relatedUnidirectional;
+
+        $this->_em->persist($entity);
+        $this->_em->flush();
+
+        // SELECT
+        $selectDql = "SELECT p FROM " . __NAMESPACE__ ."\\DDCEmbeddableManyToOne p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi";
+        $loadedEntity = $this->_em->createQuery($selectDql)
+            ->setParameter('relatedU', $relatedUnidirectional->id)
+            ->setParameter('relatedBi', $relatedBidirectional)
+            ->getSingleResult();
+        $this->assertEquals($entity, $loadedEntity);
+
+        $this->assertNull(
+            $this->_em->createQuery($selectDql)
+                ->setParameter('relatedU', 42)
+                ->setParameter('relatedBi', 100500)
+                ->getOneOrNullResult()
+        );
+
+        $related2 = new BidirectionalOne2ManyEntity();
+        $this->_em->persist($related2);
+        $this->_em->flush();
+
+        // UPDATE
+        $updateDql = "UPDATE " . __NAMESPACE__ . "\\DDCEmbeddableManyToOne p SET p.embed.bidirectional = :related WHERE p.embed.unidirectional = :relatedU";
+        $this->_em->createQuery($updateDql)
+            ->setParameter('relatedU', $relatedBidirectional)
+            ->setParameter('related', $related2)
+            ->execute();
+
+        $this->_em->refresh($entity);
+
+        $this->assertEquals($related2->id, $entity->embed->bidirectional->id);
+        $this->assertEquals($relatedUnidirectional->id, $entity->embed->unidirectional->id);
+
+        // DELETE
+        $this->_em->createQuery("DELETE " . __NAMESPACE__ . "\\DDCEmbeddableManyToOne p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi")
+            ->setParameter('relatedU', $relatedUnidirectional)
+            ->setParameter('relatedBi', $related2)
+            ->execute();
+
+        $this->_em->clear();
+        $this->assertNull($this->_em->find(__NAMESPACE__.'\\DDCEmbeddableManyToOne', $entity->id));
+    }
+
+    /**
+     * @group dql
+     */
+    public function testDqlOnEmbeddedObjectsOneToOne()
+    {
+        if ($this->isSecondLevelCacheEnabled) {
+            $this->markTestSkipped('SLC does not work with UPDATE/DELETE queries through EM.');
+        }
+
+        $relatedBidirectional = new BidirectionalOneToOneEntity();
+        $relatedUnidirectional = new UnidirectionalOneToOneEntity();
+        $this->_em->persist($relatedBidirectional);
+        $this->_em->persist($relatedUnidirectional);
+
+        $entity = new DDCEmbeddableOneToOne();
+        $entity->embed->bidirectional = $relatedBidirectional;
+        $entity->embed->unidirectional = $relatedUnidirectional;
+
+        $this->_em->persist($entity);
+        $this->_em->flush();
+
+        // SELECT
+        $selectDql = "SELECT p FROM " . __NAMESPACE__ ."\\DDCEmbeddableOneToOne p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi";
+        $loadedEntity = $this->_em->createQuery($selectDql)
+            ->setParameter('relatedU', $relatedUnidirectional->id)
+            ->setParameter('relatedBi', $relatedBidirectional)
+            ->getSingleResult();
+        $this->assertEquals($entity, $loadedEntity);
+
+        $this->assertNull(
+            $this->_em->createQuery($selectDql)
+                ->setParameter('relatedU', 42)
+                ->setParameter('relatedBi', 100500)
+                ->getOneOrNullResult()
+        );
+
+        $related2 = new BidirectionalOneToOneEntity();
+        $this->_em->persist($related2);
+        $this->_em->flush();
+
+        // UPDATE
+        $updateDql = "UPDATE " . __NAMESPACE__ . "\\DDCEmbeddableOneToOne p SET p.embed.bidirectional = :related WHERE p.embed.unidirectional = :relatedU";
+        $this->_em->createQuery($updateDql)
+            ->setParameter('relatedU', $relatedBidirectional)
+            ->setParameter('related', $related2)
+            ->execute();
+
+        $this->_em->refresh($entity);
+
+        $this->assertEquals($related2->id, $entity->embed->bidirectional->id);
+        $this->assertEquals($relatedUnidirectional->id, $entity->embed->unidirectional->id);
+
+        // DELETE
+        $this->_em->createQuery("DELETE " . __NAMESPACE__ . "\\DDCEmbeddableOneToOne p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi")
+            ->setParameter('relatedU', $relatedUnidirectional)
+            ->setParameter('relatedBi', $related2)
+            ->execute();
+
+        $this->_em->clear();
+        $this->assertNull($this->_em->find(__NAMESPACE__.'\\DDCEmbeddableOneToOne', $entity->id));
+    }
+
+    public function testDqlWithNonExistentEmbeddableField()
+    {
+        $this->setExpectedException('Doctrine\ORM\Query\QueryException', 'no field or association named embed.asdfasdf');
+
+        $this->_em->createQuery("SELECT p FROM " . __NAMESPACE__ . "\\DDCEmbeddableManyToOne p WHERE p.embed.asdfasdf IS NULL")
+            ->execute();
+    }
+
+    public function testInlineEmbeddableWithPrefix()
+    {
+        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddablePrefixes');
+
+        $this->assertEquals('some_prefix_manyToOne_id', $metadata->getAssociationMapping('embedPrefixed.manyToOne')['joinColumns'][0]['name']);
+        $this->assertEquals('some_prefix_oneToOne_id', $metadata->getAssociationMapping('embedPrefixed.oneToOne')['joinColumns'][0]['name']);
+    }
+
+    public function testInlineEmbeddableEmptyPrefix()
+    {
+        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddablePrefixes');
+
+        $this->assertEquals('embedDefault_manyToOne_id', $metadata->getAssociationMapping('embedDefault.manyToOne')['joinColumns'][0]['name']);
+        $this->assertEquals('embedDefault_oneToOne_id', $metadata->getAssociationMapping('embedDefault.oneToOne')['joinColumns'][0]['name']);
+    }
+
+    public function testInlineEmbeddablePrefixFalse()
+    {
+        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddablePrefixes');
+
+        $this->assertEquals('manyToOne_id', $metadata->getAssociationMapping('embedFalse.manyToOne')['joinColumns'][0]['name']);
+        $this->assertEquals('oneToOne_id', $metadata->getAssociationMapping('embedFalse.oneToOne')['joinColumns'][0]['name']);
+    }
+}
+
+/**
+ * @Embeddable()
+ */
+class EmbedPrefixes
+{
+    /**
+     * @ManyToOne(targetEntity="UnidirectionalOne2ManyEntity")
+     */
+    public $manyToOne;
+
+    /**
+     * @OneToOne(targetEntity="UnidirectionalOneToOneEntity")
+     */
+    public $oneToOne;
+}
+
+/**
+ * @Entity
+ */
+class DDCEmbeddablePrefixes
+{
+    const CLASSNAME = __CLASS__;
+
+    /**
+     * @Id
+     * @Column(type="integer")
+     * @GeneratedValue(strategy="AUTO")
+     */
+    public $id;
+
+    /**
+     * @var int
+     * @Embedded(class="EmbedPrefixes")
+     */
+    public $embedDefault;
+
+    /**
+     * @var int
+     * @Embedded(class="EmbedPrefixes", columnPrefix=false)
+     */
+    public $embedFalse;
+
+    /**
+     * @var int
+     * @Embedded(class="EmbedPrefixes", columnPrefix="some_prefix_")
+     */
+    public $embedPrefixed;
 }
 
 /**

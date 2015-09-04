@@ -3300,7 +3300,9 @@ class ClassMetadataInfo implements ClassMetadata
 
             if ($associationMapping['type'] === self::MANY_TO_ONE) {
                 if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
-                    $associationMapping['columnName'] = $this->embeddedClasses[$property]['columnPrefix'] . $associationMapping['columnName'];
+                    foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
+                        $associationMapping['joinColumns'][$i]['name'] = $this->embeddedClasses[$property]['columnPrefix'] . $columnMapping['name'];
+                    }
                 } elseif ($this->embeddedClasses[$property]['columnPrefix'] !== false) {
                     foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
                         $associationMapping['joinColumns'][$i]['name'] = $this->namingStrategy
@@ -3333,7 +3335,21 @@ class ClassMetadataInfo implements ClassMetadata
                 }
                 $this->mapManyToMany($associationMapping);
             } else if ($associationMapping['type'] === self::ONE_TO_ONE) {
-                //@todo: prefix columns on remote entity
+                if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
+                    foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
+                        $associationMapping['joinColumns'][$i]['name'] = $this->embeddedClasses[$property]['columnPrefix'] . $columnMapping['name'];
+                    }
+                } elseif ($this->embeddedClasses[$property]['columnPrefix'] !== false) {
+                    foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
+                        $associationMapping['joinColumns'][$i]['name'] = $this->namingStrategy
+                            ->embeddedFieldToColumnName(
+                                $property,
+                                $columnMapping['name'],
+                                $this->reflClass->name,
+                                $embeddable->reflClass->name
+                            );
+                    }
+                }
                 $this->mapOneToOne($associationMapping);
             }
         }
