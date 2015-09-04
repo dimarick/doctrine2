@@ -928,7 +928,7 @@ class ManyToOneEmbeddable
     public $unidirectional;
 
     /**
-     * @ManyToOne(targetEntity = "BidirectionalManyToOneEntity", inversedBy = "property")
+     * @ManyToOne(targetEntity="BidirectionalManyToOneEntity", inversedBy="property")
      */
     public $bidirectional;
 }
@@ -948,7 +948,7 @@ class EmbeddableManyToOneEntity
     public $id;
 
     /**
-     * @Embedded(class = "ManyToOneEmbeddable", columnPrefix = false)
+     * @Embedded(class="ManyToOneEmbeddable", columnPrefix=false)
      */
     public $embed;
 
@@ -1008,7 +1008,7 @@ class EmbeddableOneToManyEntity
     public $id;
 
     /**
-     * @Embedded(class = "OneToManyEmbeddable", columnPrefix = false)
+     * @Embedded(class="OneToManyEmbeddable", columnPrefix=false)
      */
     public $embed;
 
@@ -1098,13 +1098,10 @@ class EmbeddableManyToManyEntity
     public $id;
 
     /**
-     * @Embedded(class = "ManyToManyEmbeddable", columnPrefix = false)
+     * @Embedded(class="ManyToManyEmbeddable", columnPrefix=false)
      */
     public $embed;
 
-    /**
-     * DDC3480Vacancy constructor.
-     */
     public function __construct()
     {
         $this->embed = new ManyToManyEmbeddable();
@@ -1191,13 +1188,10 @@ class EmbeddableOneToOneEntity
     public $id;
 
     /**
-     * @Embedded(class = "OneToOneEmbeddable", columnPrefix = false)
+     * @Embedded(class="OneToOneEmbeddable", columnPrefix=false)
      */
     public $embed;
 
-    /**
-     * DDC3480Vacancy constructor.
-     */
     public function __construct()
     {
         $this->embed = new OneToOneEmbeddable();
