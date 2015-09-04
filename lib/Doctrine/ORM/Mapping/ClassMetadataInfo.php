@@ -3295,64 +3295,44 @@ class ClassMetadataInfo implements ClassMetadata
             $associationMapping['fieldName'] = $property . "." . $associationMapping['fieldName'];
             $associationMapping['sourceEntity'] = $this->name;
 
-
-            //@todo: check support bi-directional relationships
-
             if ($associationMapping['type'] === self::MANY_TO_ONE) {
-                if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
-                    foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
-                        $associationMapping['joinColumns'][$i]['name'] = $this->embeddedClasses[$property]['columnPrefix'] . $columnMapping['name'];
-                    }
-                } elseif ($this->embeddedClasses[$property]['columnPrefix'] !== false) {
-                    foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
-                        $associationMapping['joinColumns'][$i]['name'] = $this->namingStrategy
-                            ->embeddedFieldToColumnName(
-                                $property,
-                                $columnMapping['name'],
-                                $this->reflClass->name,
-                                $embeddable->reflClass->name
-                            );
-                    }
-                }
+                $associationMapping = $this->prefixJoinColumns($embeddable, $property, $associationMapping);
                 $this->mapManyToOne($associationMapping);
             } else if ($associationMapping['type'] === self::ONE_TO_MANY) {
-                //@todo: prefix columns on remote entity
-                //добавить опцию non-owning-side relation prefix for mappedBy
                 $this->mapOneToMany($associationMapping);
             } else if ($associationMapping['type'] === self::MANY_TO_MANY) {
-                //@todo: prefix for bidirectional many2many
-                //добавить опцию non-owning-side relation prefix for joinTable.name
-                if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
-                    $associationMapping['columnName'] = $this->embeddedClasses[$property]['columnPrefix'] . $associationMapping['columnName'];
-                } elseif ($this->embeddedClasses[$property]['columnPrefix'] !== false) {
-                    $associationMapping['joinTable']['name'] = $this->namingStrategy
-                        ->embeddedFieldToColumnName(
-                            $property,
-                            $associationMapping['joinTable']['name'],
-                            $this->reflClass->name,
-                            $embeddable->reflClass->name
-                        );
-                }
                 $this->mapManyToMany($associationMapping);
             } else if ($associationMapping['type'] === self::ONE_TO_ONE) {
-                if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
-                    foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
-                        $associationMapping['joinColumns'][$i]['name'] = $this->embeddedClasses[$property]['columnPrefix'] . $columnMapping['name'];
-                    }
-                } elseif ($this->embeddedClasses[$property]['columnPrefix'] !== false) {
-                    foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
-                        $associationMapping['joinColumns'][$i]['name'] = $this->namingStrategy
-                            ->embeddedFieldToColumnName(
-                                $property,
-                                $columnMapping['name'],
-                                $this->reflClass->name,
-                                $embeddable->reflClass->name
-                            );
-                    }
-                }
+                $associationMapping = $this->prefixJoinColumns($embeddable, $property, $associationMapping);
                 $this->mapOneToOne($associationMapping);
             }
         }
+    }
+
+    /**
+     * @param ClassMetadataInfo $embeddable
+     * @param string $property
+     * @param array $associationMapping
+     * @return array $associationMapping
+     */
+    private function prefixJoinColumns(ClassMetadataInfo $embeddable, $property, array $associationMapping)
+    {
+        if (! empty($this->embeddedClasses[$property]['columnPrefix'])) {
+            foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
+                $associationMapping['joinColumns'][$i]['name'] = $this->embeddedClasses[$property]['columnPrefix'] . $columnMapping['name'];
+            }
+        } elseif ($this->embeddedClasses[$property]['columnPrefix'] !== false) {
+            foreach($associationMapping['joinColumns'] as $i => $columnMapping) {
+                $associationMapping['joinColumns'][$i]['name'] = $this->namingStrategy
+                    ->embeddedFieldToColumnName(
+                        $property,
+                        $columnMapping['name'],
+                        $this->reflClass->name,
+                        $embeddable->reflClass->name
+                    );
+            }
+        }
+        return $associationMapping;
     }
 
     /**
