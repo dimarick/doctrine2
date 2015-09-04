@@ -23,13 +23,13 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
         try {
             $classes = array(
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToOne'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableOneToMany'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToMany'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableOneToOne'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\BidirectionalOne2ManyEntity'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\UnidirectionalOne2ManyEntity'),
-                $this->_em->getClassMetadata(__NAMESPACE__ . '\ManyToOneEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddableManyToOneEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddableOneToManyEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddableManyToManyEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddableOneToOneEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\BidirectionalManyToOneEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\UnidirectionalManyToOneEntity'),
+                $this->_em->getClassMetadata(__NAMESPACE__ . '\OneToManyEntity'),
                 $this->_em->getClassMetadata(__NAMESPACE__ . '\UnidirectionalManyToManyEntity'),
                 $this->_em->getClassMetadata(__NAMESPACE__ . '\BidirectionalManyToManyEntity'),
                 $this->_em->getClassMetadata(__NAMESPACE__ . '\UnidirectionalOneToOneEntity'),
@@ -43,22 +43,22 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
     public function testMetadataHasReflectionEmbeddablesAccessible()
     {
-        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToOne');
+        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddableManyToOneEntity');
         $this->assertInstanceOf('Doctrine\Common\Reflection\RuntimePublicReflectionProperty', $classMetadata->getReflectionProperty('embed'));
         $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.unidirectional'));
         $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.bidirectional'));
 
-        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableOneToMany');
+        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddableOneToManyEntity');
         $this->assertInstanceOf('Doctrine\Common\Reflection\RuntimePublicReflectionProperty', $classMetadata->getReflectionProperty('embed'));
         $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.entities'));
 
-        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableManyToMany');
+        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddableManyToManyEntity');
         $this->assertInstanceOf('Doctrine\Common\Reflection\RuntimePublicReflectionProperty', $classMetadata->getReflectionProperty('embed'));
         $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.unidirectional'));
         $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.bidirectional'));
         $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.bidirectionalInversed'));
 
-        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddableOneToOne');
+        $classMetadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddableOneToOneEntity');
         $this->assertInstanceOf('Doctrine\Common\Reflection\RuntimePublicReflectionProperty', $classMetadata->getReflectionProperty('embed'));
         $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.unidirectional'));
         $this->assertInstanceOf('Doctrine\ORM\Mapping\ReflectionEmbeddedProperty', $classMetadata->getReflectionProperty('embed.bidirectional'));
@@ -67,12 +67,12 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
     public function testCRUDManyToOne()
     {
-        $relatedBidirectional = new BidirectionalOne2ManyEntity();
-        $relatedUnidirectional = new UnidirectionalOne2ManyEntity();
+        $relatedBidirectional = new BidirectionalManyToOneEntity();
+        $relatedUnidirectional = new UnidirectionalManyToOneEntity();
         $this->_em->persist($relatedBidirectional);
         $this->_em->persist($relatedUnidirectional);
 
-        $entity = new DDCEmbeddableManyToOne();
+        $entity = new EmbeddableManyToOneEntity();
         $entity->embed->bidirectional = $relatedBidirectional;
         $entity->embed->unidirectional = $relatedUnidirectional;
 
@@ -83,19 +83,19 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->clear();
 
         // 2. check loading value objects works
-        $entity = $this->_em->find(DDCEmbeddableManyToOne::CLASSNAME, $entity->id);
+        $entity = $this->_em->find(EmbeddableManyToOneEntity::CLASSNAME, $entity->id);
 
-        $this->assertInstanceOf(DDCEmbedManyToOne::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(ManyToOneEmbeddable::CLASSNAME, $entity->embed);
 
-        $this->assertInstanceOf(BidirectionalOne2ManyEntity::CLASSNAME, $entity->embed->bidirectional);
+        $this->assertInstanceOf(BidirectionalManyToOneEntity::CLASSNAME, $entity->embed->bidirectional);
         $this->assertEquals($relatedBidirectional->id, $entity->embed->bidirectional->id);
 
-        $this->assertInstanceOf(UnidirectionalOne2ManyEntity::CLASSNAME, $entity->embed->unidirectional);
+        $this->assertInstanceOf(UnidirectionalManyToOneEntity::CLASSNAME, $entity->embed->unidirectional);
         $this->assertEquals($relatedUnidirectional->id, $entity->embed->unidirectional->id);
 
         // 3. check changing value objects works
-        $relatedBidirectional2 = new BidirectionalOne2ManyEntity();
-        $relatedUnidirectional2 = new UnidirectionalOne2ManyEntity();
+        $relatedBidirectional2 = new BidirectionalManyToOneEntity();
+        $relatedUnidirectional2 = new UnidirectionalManyToOneEntity();
         $this->_em->persist($relatedBidirectional2);
         $this->_em->persist($relatedUnidirectional2);
 
@@ -106,14 +106,14 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
         $this->_em->clear();
 
-        $entity = $this->_em->find(DDCEmbeddableManyToOne::CLASSNAME, $entity->id);
+        $entity = $this->_em->find(EmbeddableManyToOneEntity::CLASSNAME, $entity->id);
 
-        $this->assertInstanceOf(DDCEmbedManyToOne::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(ManyToOneEmbeddable::CLASSNAME, $entity->embed);
 
-        $this->assertInstanceOf(BidirectionalOne2ManyEntity::CLASSNAME, $entity->embed->bidirectional);
+        $this->assertInstanceOf(BidirectionalManyToOneEntity::CLASSNAME, $entity->embed->bidirectional);
         $this->assertEquals($relatedBidirectional2->id, $entity->embed->bidirectional->id);
 
-        $this->assertInstanceOf(UnidirectionalOne2ManyEntity::CLASSNAME, $entity->embed->unidirectional);
+        $this->assertInstanceOf(UnidirectionalManyToOneEntity::CLASSNAME, $entity->embed->unidirectional);
         $this->assertEquals($relatedUnidirectional2->id, $entity->embed->unidirectional->id);
 
         // 4. check deleting works
@@ -121,19 +121,19 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->remove($entity);
         $this->_em->flush();
 
-        $this->assertNull($this->_em->find(DDCEmbeddableManyToOne::CLASSNAME, $entityId));
+        $this->assertNull($this->_em->find(EmbeddableManyToOneEntity::CLASSNAME, $entityId));
     }
 
     public function testCRUDOneToMany()
     {
         $related = array(
-            new ManyToOneEntity(),
-            new ManyToOneEntity(),
+            new OneToManyEntity(),
+            new OneToManyEntity(),
         );
         $this->_em->persist($related[0]);
         $this->_em->persist($related[1]);
 
-        $entity = new DDCEmbeddableOneToMany();
+        $entity = new EmbeddableOneToManyEntity();
         $entity->embed->entities = $related;
         $related[0]->property = $entity;
         $related[1]->property = $entity;
@@ -145,18 +145,18 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->clear();
 
         // 2. check loading value objects works
-        $entity = $this->_em->find(DDCEmbeddableOneToMany::CLASSNAME, $entity->id);
+        $entity = $this->_em->find(EmbeddableOneToManyEntity::CLASSNAME, $entity->id);
 
-        $this->assertInstanceOf(DDCEmbedOneToMany::CLASSNAME, $entity->embed);
-        $this->assertInstanceOf(ManyToOneEntity::CLASSNAME, $entity->embed->entities[0]);
-        $this->assertInstanceOf(ManyToOneEntity::CLASSNAME, $entity->embed->entities[1]);
+        $this->assertInstanceOf(OneToManyEmbeddable::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(OneToManyEntity::CLASSNAME, $entity->embed->entities[0]);
+        $this->assertInstanceOf(OneToManyEntity::CLASSNAME, $entity->embed->entities[1]);
         $this->assertEquals($related[0]->id, $entity->embed->entities[0]->id);
         $this->assertEquals($related[1]->id, $entity->embed->entities[1]->id);
 
         // 3. check changing value objects works
         $related2 = array(
-            new ManyToOneEntity(),
-            new ManyToOneEntity(),
+            new OneToManyEntity(),
+            new OneToManyEntity(),
         );
         $this->_em->persist($related2[0]);
         $this->_em->persist($related2[1]);
@@ -172,11 +172,11 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
         $this->_em->clear();
 
-        $entity = $this->_em->find(DDCEmbeddableOneToMany::CLASSNAME, $entity->id);
+        $entity = $this->_em->find(EmbeddableOneToManyEntity::CLASSNAME, $entity->id);
 
-        $this->assertInstanceOf(DDCEmbedOneToMany::CLASSNAME, $entity->embed);
-        $this->assertInstanceOf(ManyToOneEntity::CLASSNAME, $entity->embed->entities[0]);
-        $this->assertInstanceOf(ManyToOneEntity::CLASSNAME, $entity->embed->entities[1]);
+        $this->assertInstanceOf(OneToManyEmbeddable::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(OneToManyEntity::CLASSNAME, $entity->embed->entities[0]);
+        $this->assertInstanceOf(OneToManyEntity::CLASSNAME, $entity->embed->entities[1]);
         $this->assertEquals($related2[0]->id, $entity->embed->entities[0]->id);
         $this->assertEquals($related2[1]->id, $entity->embed->entities[1]->id);
 
@@ -185,7 +185,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->remove($entity);
         $this->_em->flush();
 
-        $this->assertNull($this->_em->find(DDCEmbeddableOneToMany::CLASSNAME, $entityId));
+        $this->assertNull($this->_em->find(EmbeddableOneToManyEntity::CLASSNAME, $entityId));
     }
 
     public function testCRUDManyToMany()
@@ -212,7 +212,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->persist($relatedBiInversed[0]);
         $this->_em->persist($relatedBiInversed[1]);
 
-        $entity = new DDCEmbeddableManyToMany();
+        $entity = new EmbeddableManyToManyEntity();
         $entity->embed->unidirectional = $relatedUni;
         $entity->embed->bidirectional = $relatedBi;
         $entity->embed->bidirectionalInversed = $relatedBiInversed;
@@ -226,9 +226,9 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->clear();
 
         // 2. check loading value objects works
-        $entity = $this->_em->find(DDCEmbeddableManyToMany::CLASSNAME, $entity->id);
+        $entity = $this->_em->find(EmbeddableManyToManyEntity::CLASSNAME, $entity->id);
 
-        $this->assertInstanceOf(DDCEmbedManyToMany::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(ManyToManyEmbeddable::CLASSNAME, $entity->embed);
         $this->assertInstanceOf(UnidirectionalManyToManyEntity::CLASSNAME, $entity->embed->unidirectional[0]);
         $this->assertInstanceOf(UnidirectionalManyToManyEntity::CLASSNAME, $entity->embed->unidirectional[1]);
         $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectional[0]);
@@ -278,9 +278,9 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
         $this->_em->clear();
 
-        $entity = $this->_em->find(DDCEmbeddableManyToMany::CLASSNAME, $entity->id);
+        $entity = $this->_em->find(EmbeddableManyToManyEntity::CLASSNAME, $entity->id);
 
-        $this->assertInstanceOf(DDCEmbedManyToMany::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(ManyToManyEmbeddable::CLASSNAME, $entity->embed);
         $this->assertInstanceOf(UnidirectionalManyToManyEntity::CLASSNAME, $entity->embed->unidirectional[0]);
         $this->assertInstanceOf(UnidirectionalManyToManyEntity::CLASSNAME, $entity->embed->unidirectional[1]);
         $this->assertInstanceOf(BidirectionalManyToManyEntity::CLASSNAME, $entity->embed->bidirectional[0]);
@@ -299,7 +299,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->remove($entity);
         $this->_em->flush();
 
-        $this->assertNull($this->_em->find(DDCEmbeddableManyToMany::CLASSNAME, $entityId));
+        $this->assertNull($this->_em->find(EmbeddableManyToManyEntity::CLASSNAME, $entityId));
     }
 
     public function testCRUDOneToOne()
@@ -311,7 +311,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->persist($relatedBi);
         $this->_em->persist($relatedBiInversed);
 
-        $entity = new DDCEmbeddableOneToOne();
+        $entity = new EmbeddableOneToOneEntity();
         $entity->embed->unidirectional = $relatedUni;
         $entity->embed->bidirectional = $relatedBi;
         $entity->embed->bidirectionalInversed = $relatedBiInversed;
@@ -324,9 +324,9 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->clear();
 
         // 2. check loading value objects works
-        $entity = $this->_em->find(DDCEmbeddableOneToOne::CLASSNAME, $entity->id);
+        $entity = $this->_em->find(EmbeddableOneToOneEntity::CLASSNAME, $entity->id);
 
-        $this->assertInstanceOf(DDCEmbedOneToOne::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(OneToOneEmbeddable::CLASSNAME, $entity->embed);
         $this->assertInstanceOf(UnidirectionalOneToOneEntity::CLASSNAME, $entity->embed->unidirectional);
         $this->assertInstanceOf(BidirectionalOneToOneEntity::CLASSNAME, $entity->embed->bidirectional);
         $this->assertInstanceOf(BidirectionalOneToOneEntity::CLASSNAME, $entity->embed->bidirectionalInversed);
@@ -357,9 +357,9 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
         $this->_em->clear();
 
-        $entity = $this->_em->find(DDCEmbeddableOneToOne::CLASSNAME, $entity->id);
+        $entity = $this->_em->find(EmbeddableOneToOneEntity::CLASSNAME, $entity->id);
 
-        $this->assertInstanceOf(DDCEmbedOneToOne::CLASSNAME, $entity->embed);
+        $this->assertInstanceOf(OneToOneEmbeddable::CLASSNAME, $entity->embed);
         $this->assertInstanceOf(UnidirectionalOneToOneEntity::CLASSNAME, $entity->embed->unidirectional);
         $this->assertInstanceOf(BidirectionalOneToOneEntity::CLASSNAME, $entity->embed->bidirectional);
         $this->assertInstanceOf(BidirectionalOneToOneEntity::CLASSNAME, $entity->embed->bidirectionalInversed);
@@ -372,27 +372,27 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->remove($entity);
         $this->_em->flush();
 
-        $this->assertNull($this->_em->find(DDCEmbeddableOneToOne::CLASSNAME, $entityId));
+        $this->assertNull($this->_em->find(EmbeddableOneToOneEntity::CLASSNAME, $entityId));
     }
 
     public function testLoadDqlManyToOne()
     {
-        $relatedBidirectional = new BidirectionalOne2ManyEntity();
-        $relatedUnidirectional = new UnidirectionalOne2ManyEntity();
+        $relatedBidirectional = new BidirectionalManyToOneEntity();
+        $relatedUnidirectional = new UnidirectionalManyToOneEntity();
         $this->_em->persist($relatedBidirectional);
         $this->_em->persist($relatedUnidirectional);
 
         $entities = [];
 
-        $entities[0] = new DDCEmbeddableManyToOne();
+        $entities[0] = new EmbeddableManyToOneEntity();
         $entities[0]->embed->bidirectional = $relatedBidirectional;
         $entities[0]->embed->unidirectional = $relatedUnidirectional;
 
-        $entities[1] = new DDCEmbeddableManyToOne();
+        $entities[1] = new EmbeddableManyToOneEntity();
         $entities[1]->embed->bidirectional = $relatedBidirectional;
         $entities[1]->embed->unidirectional = $relatedUnidirectional;
 
-        $entities[2] = new DDCEmbeddableManyToOne();
+        $entities[2] = new EmbeddableManyToOneEntity();
         $entities[2]->embed->bidirectional = $relatedBidirectional;
         $entities[2]->embed->unidirectional = $relatedUnidirectional;
 
@@ -404,7 +404,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->clear();
 
         $dql = "
-          SELECT p, unidirectional, bidirectional FROM " . __NAMESPACE__ . "\DDCEmbeddableManyToOne p
+          SELECT p, unidirectional, bidirectional FROM " . __NAMESPACE__ . "\EmbeddableManyToOneEntity p
           INNER JOIN p.embed.unidirectional unidirectional
           INNER JOIN p.embed.bidirectional bidirectional
         ";
@@ -440,25 +440,25 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
     {
         $entities = [];
         $related = array(
-            new ManyToOneEntity(),
-            new ManyToOneEntity(),
+            new OneToManyEntity(),
+            new OneToManyEntity(),
         );
         $this->_em->persist($related[0]);
         $this->_em->persist($related[1]);
 
-        $entities[0] = new DDCEmbeddableOneToMany();
+        $entities[0] = new EmbeddableOneToManyEntity();
         $entities[0]->embed->entities = $related;
         $related[0]->property = $entities[0];
         $related[1]->property = $entities[0];
 
         $related = array(
-            new ManyToOneEntity(),
-            new ManyToOneEntity(),
+            new OneToManyEntity(),
+            new OneToManyEntity(),
         );
         $this->_em->persist($related[0]);
         $this->_em->persist($related[1]);
 
-        $entities[1] = new DDCEmbeddableOneToMany();
+        $entities[1] = new EmbeddableOneToManyEntity();
         $entities[1]->embed->entities = $related;
         $related[0]->property = $entities[1];
         $related[1]->property = $entities[1];
@@ -470,7 +470,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->clear();
 
         $dql = "
-          SELECT p, entities FROM " . __NAMESPACE__ . "\DDCEmbeddableOneToMany p
+          SELECT p, entities FROM " . __NAMESPACE__ . "\EmbeddableOneToManyEntity p
           INNER JOIN p.embed.entities entities
         ";
 
@@ -519,7 +519,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->persist($relatedBiInversed[0]);
         $this->_em->persist($relatedBiInversed[1]);
 
-        $entities[0] = new DDCEmbeddableManyToMany();
+        $entities[0] = new EmbeddableManyToManyEntity();
         $entities[0]->embed->unidirectional = $relatedUni;
         $entities[0]->embed->bidirectional = $relatedBi;
         $entities[0]->embed->bidirectionalInversed = $relatedBiInversed;
@@ -550,7 +550,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->persist($relatedBiInversed[0]);
         $this->_em->persist($relatedBiInversed[1]);
 
-        $entities[1] = new DDCEmbeddableManyToMany();
+        $entities[1] = new EmbeddableManyToManyEntity();
         $entities[1]->embed->unidirectional = $relatedUni;
         $entities[1]->embed->bidirectional = $relatedBi;
         $entities[1]->embed->bidirectionalInversed = $relatedBiInversed;
@@ -563,7 +563,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->clear();
 
         $dql = "
-          SELECT p, unidirectional, bidirectional, bidirectionalInversed FROM " . __NAMESPACE__ . "\DDCEmbeddableManyToMany p
+          SELECT p, unidirectional, bidirectional, bidirectionalInversed FROM " . __NAMESPACE__ . "\EmbeddableManyToManyEntity p
           INNER JOIN p.embed.unidirectional unidirectional
           INNER JOIN p.embed.bidirectional bidirectional
           INNER JOIN p.embed.bidirectionalInversed bidirectionalInversed
@@ -615,7 +615,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->persist($relatedBi);
         $this->_em->persist($relatedBiInversed);
 
-        $entities[0] = new DDCEmbeddableOneToOne();
+        $entities[0] = new EmbeddableOneToOneEntity();
         $entities[0]->embed->unidirectional = $relatedUni;
         $entities[0]->embed->bidirectional = $relatedBi;
         $entities[0]->embed->bidirectionalInversed = $relatedBiInversed;
@@ -630,7 +630,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->persist($relatedBi);
         $this->_em->persist($relatedBiInversed);
 
-        $entities[1] = new DDCEmbeddableOneToOne();
+        $entities[1] = new EmbeddableOneToOneEntity();
         $entities[1]->embed->unidirectional = $relatedUni;
         $entities[1]->embed->bidirectional = $relatedBi;
         $entities[1]->embed->bidirectionalInversed = $relatedBiInversed;
@@ -642,7 +642,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->clear();
 
         $dql = "
-          SELECT p, unidirectional, bidirectional, bidirectionalInversed FROM " . __NAMESPACE__ . "\DDCEmbeddableOneToOne p
+          SELECT p, unidirectional, bidirectional, bidirectionalInversed FROM " . __NAMESPACE__ . "\EmbeddableOneToOneEntity p
           INNER JOIN p.embed.unidirectional unidirectional
           INNER JOIN p.embed.bidirectional bidirectional
           INNER JOIN p.embed.bidirectionalInversed bidirectionalInversed
@@ -682,12 +682,12 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
             $this->markTestSkipped('SLC does not work with UPDATE/DELETE queries through EM.');
         }
 
-        $relatedBidirectional = new BidirectionalOne2ManyEntity();
-        $relatedUnidirectional = new UnidirectionalOne2ManyEntity();
+        $relatedBidirectional = new BidirectionalManyToOneEntity();
+        $relatedUnidirectional = new UnidirectionalManyToOneEntity();
         $this->_em->persist($relatedBidirectional);
         $this->_em->persist($relatedUnidirectional);
 
-        $entity = new DDCEmbeddableManyToOne();
+        $entity = new EmbeddableManyToOneEntity();
         $entity->embed->bidirectional = $relatedBidirectional;
         $entity->embed->unidirectional = $relatedUnidirectional;
 
@@ -695,7 +695,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->flush();
 
         // SELECT
-        $selectDql = "SELECT p FROM " . __NAMESPACE__ ."\\DDCEmbeddableManyToOne p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi";
+        $selectDql = "SELECT p FROM " . __NAMESPACE__ ."\\EmbeddableManyToOneEntity p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi";
         $loadedEntity = $this->_em->createQuery($selectDql)
             ->setParameter('relatedU', $relatedUnidirectional->id)
             ->setParameter('relatedBi', $relatedBidirectional)
@@ -709,12 +709,12 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
                 ->getOneOrNullResult()
         );
 
-        $related2 = new BidirectionalOne2ManyEntity();
+        $related2 = new BidirectionalManyToOneEntity();
         $this->_em->persist($related2);
         $this->_em->flush();
 
         // UPDATE
-        $updateDql = "UPDATE " . __NAMESPACE__ . "\\DDCEmbeddableManyToOne p SET p.embed.bidirectional = :related WHERE p.embed.unidirectional = :relatedU";
+        $updateDql = "UPDATE " . __NAMESPACE__ . "\\EmbeddableManyToOneEntity p SET p.embed.bidirectional = :related WHERE p.embed.unidirectional = :relatedU";
         $this->_em->createQuery($updateDql)
             ->setParameter('relatedU', $relatedBidirectional)
             ->setParameter('related', $related2)
@@ -726,13 +726,13 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->assertEquals($relatedUnidirectional->id, $entity->embed->unidirectional->id);
 
         // DELETE
-        $this->_em->createQuery("DELETE " . __NAMESPACE__ . "\\DDCEmbeddableManyToOne p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi")
+        $this->_em->createQuery("DELETE " . __NAMESPACE__ . "\\EmbeddableManyToOneEntity p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi")
             ->setParameter('relatedU', $relatedUnidirectional)
             ->setParameter('relatedBi', $related2)
             ->execute();
 
         $this->_em->clear();
-        $this->assertNull($this->_em->find(__NAMESPACE__.'\\DDCEmbeddableManyToOne', $entity->id));
+        $this->assertNull($this->_em->find(__NAMESPACE__.'\\EmbeddableManyToOneEntity', $entity->id));
     }
 
     /**
@@ -749,7 +749,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->persist($relatedBidirectional);
         $this->_em->persist($relatedUnidirectional);
 
-        $entity = new DDCEmbeddableOneToOne();
+        $entity = new EmbeddableOneToOneEntity();
         $entity->embed->bidirectional = $relatedBidirectional;
         $entity->embed->unidirectional = $relatedUnidirectional;
 
@@ -757,7 +757,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->flush();
 
         // SELECT
-        $selectDql = "SELECT p FROM " . __NAMESPACE__ ."\\DDCEmbeddableOneToOne p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi";
+        $selectDql = "SELECT p FROM " . __NAMESPACE__ ."\\EmbeddableOneToOneEntity p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi";
         $loadedEntity = $this->_em->createQuery($selectDql)
             ->setParameter('relatedU', $relatedUnidirectional->id)
             ->setParameter('relatedBi', $relatedBidirectional)
@@ -776,7 +776,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->flush();
 
         // UPDATE
-        $updateDql = "UPDATE " . __NAMESPACE__ . "\\DDCEmbeddableOneToOne p SET p.embed.bidirectional = :related WHERE p.embed.unidirectional = :relatedU";
+        $updateDql = "UPDATE " . __NAMESPACE__ . "\\EmbeddableOneToOneEntity p SET p.embed.bidirectional = :related WHERE p.embed.unidirectional = :relatedU";
         $this->_em->createQuery($updateDql)
             ->setParameter('relatedU', $relatedBidirectional)
             ->setParameter('related', $related2)
@@ -788,26 +788,26 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->assertEquals($relatedUnidirectional->id, $entity->embed->unidirectional->id);
 
         // DELETE
-        $this->_em->createQuery("DELETE " . __NAMESPACE__ . "\\DDCEmbeddableOneToOne p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi")
+        $this->_em->createQuery("DELETE " . __NAMESPACE__ . "\\EmbeddableOneToOneEntity p WHERE p.embed.unidirectional = :relatedU AND p.embed.bidirectional = :relatedBi")
             ->setParameter('relatedU', $relatedUnidirectional)
             ->setParameter('relatedBi', $related2)
             ->execute();
 
         $this->_em->clear();
-        $this->assertNull($this->_em->find(__NAMESPACE__.'\\DDCEmbeddableOneToOne', $entity->id));
+        $this->assertNull($this->_em->find(__NAMESPACE__.'\\EmbeddableOneToOneEntity', $entity->id));
     }
 
     public function testDqlWithNonExistentEmbeddableField()
     {
         $this->setExpectedException('Doctrine\ORM\Query\QueryException', 'no field or association named embed.asdfasdf');
 
-        $this->_em->createQuery("SELECT p FROM " . __NAMESPACE__ . "\\DDCEmbeddableManyToOne p WHERE p.embed.asdfasdf IS NULL")
+        $this->_em->createQuery("SELECT p FROM " . __NAMESPACE__ . "\\EmbeddableManyToOneEntity p WHERE p.embed.asdfasdf IS NULL")
             ->execute();
     }
 
     public function testInlineEmbeddableWithPrefix()
     {
-        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddablePrefixes');
+        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddablePrefixesEntity');
 
         $this->assertEquals('some_prefix_manyToOne_id', $metadata->getAssociationMapping('embedPrefixed.manyToOne')['joinColumns'][0]['name']);
         $this->assertEquals('some_prefix_oneToOne_id', $metadata->getAssociationMapping('embedPrefixed.oneToOne')['joinColumns'][0]['name']);
@@ -815,7 +815,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
     public function testInlineEmbeddableEmptyPrefix()
     {
-        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddablePrefixes');
+        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddablePrefixesEntity');
 
         $this->assertEquals('embedDefault_manyToOne_id', $metadata->getAssociationMapping('embedDefault.manyToOne')['joinColumns'][0]['name']);
         $this->assertEquals('embedDefault_oneToOne_id', $metadata->getAssociationMapping('embedDefault.oneToOne')['joinColumns'][0]['name']);
@@ -823,7 +823,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
     public function testInlineEmbeddablePrefixFalse()
     {
-        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\DDCEmbeddablePrefixes');
+        $metadata = $this->_em->getClassMetadata(__NAMESPACE__ . '\EmbeddablePrefixesEntity');
 
         $this->assertEquals('manyToOne_id', $metadata->getAssociationMapping('embedFalse.manyToOne')['joinColumns'][0]['name']);
         $this->assertEquals('oneToOne_id', $metadata->getAssociationMapping('embedFalse.oneToOne')['joinColumns'][0]['name']);
@@ -836,7 +836,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
 class EmbedPrefixes
 {
     /**
-     * @ManyToOne(targetEntity="UnidirectionalOne2ManyEntity")
+     * @ManyToOne(targetEntity="UnidirectionalManyToOneEntity")
      */
     public $manyToOne;
 
@@ -849,7 +849,7 @@ class EmbedPrefixes
 /**
  * @Entity
  */
-class DDCEmbeddablePrefixes
+class EmbeddablePrefixesEntity
 {
     const CLASSNAME = __CLASS__;
 
@@ -882,7 +882,7 @@ class DDCEmbeddablePrefixes
 /**
  * @Entity
  */
-class BidirectionalOne2ManyEntity
+class BidirectionalManyToOneEntity
 {
     const CLASSNAME = __CLASS__;
 
@@ -895,7 +895,7 @@ class BidirectionalOne2ManyEntity
 
     /**
      * @var int
-     * @OneToMany(targetEntity="DDCEmbeddableManyToOne", mappedBy="embed.bidirectional")
+     * @OneToMany(targetEntity="EmbeddableManyToOneEntity", mappedBy="embed.bidirectional")
      */
     public $property;
 }
@@ -903,7 +903,7 @@ class BidirectionalOne2ManyEntity
 /**
  * @Entity
  */
-class UnidirectionalOne2ManyEntity
+class UnidirectionalManyToOneEntity
 {
     const CLASSNAME = __CLASS__;
 
@@ -918,17 +918,17 @@ class UnidirectionalOne2ManyEntity
 /**
  * @Embeddable
  */
-class DDCEmbedManyToOne
+class ManyToOneEmbeddable
 {
     const CLASSNAME = __CLASS__;
 
     /**
-     * @ManyToOne(targetEntity="UnidirectionalOne2ManyEntity")
+     * @ManyToOne(targetEntity="UnidirectionalManyToOneEntity")
      */
     public $unidirectional;
 
     /**
-     * @ManyToOne(targetEntity = "BidirectionalOne2ManyEntity", inversedBy = "property")
+     * @ManyToOne(targetEntity = "BidirectionalManyToOneEntity", inversedBy = "property")
      */
     public $bidirectional;
 }
@@ -936,7 +936,7 @@ class DDCEmbedManyToOne
 /**
  * @Entity
  */
-class DDCEmbeddableManyToOne
+class EmbeddableManyToOneEntity
 {
     const CLASSNAME = __CLASS__;
 
@@ -948,20 +948,20 @@ class DDCEmbeddableManyToOne
     public $id;
 
     /**
-     * @Embedded(class = "DDCEmbedManyToOne", columnPrefix = false)
+     * @Embedded(class = "ManyToOneEmbeddable", columnPrefix = false)
      */
     public $embed;
 
     public function __construct()
     {
-        $this->embed = new DDCEmbedManyToOne();
+        $this->embed = new ManyToOneEmbeddable();
     }
 }
 
 /**
  * @Entity
  */
-class ManyToOneEntity
+class OneToManyEntity
 {
     const CLASSNAME = __CLASS__;
 
@@ -974,7 +974,7 @@ class ManyToOneEntity
 
     /**
      * @var int
-     * @ManyToOne(targetEntity="DDCEmbeddableOneToMany", inversedBy="embed.entities")
+     * @ManyToOne(targetEntity="EmbeddableOneToManyEntity", inversedBy="embed.entities")
      */
     public $property;
 }
@@ -983,12 +983,12 @@ class ManyToOneEntity
 /**
  * @Embeddable()
  */
-class DDCEmbedOneToMany
+class OneToManyEmbeddable
 {
     const CLASSNAME = __CLASS__;
 
     /**
-     * @OneToMany(targetEntity="ManyToOneEntity", mappedBy="property")
+     * @OneToMany(targetEntity="OneToManyEntity", mappedBy="property")
      */
     public $entities;
 }
@@ -996,7 +996,7 @@ class DDCEmbedOneToMany
 /**
  * @Entity
  */
-class DDCEmbeddableOneToMany
+class EmbeddableOneToManyEntity
 {
     const CLASSNAME = __CLASS__;
 
@@ -1008,13 +1008,13 @@ class DDCEmbeddableOneToMany
     public $id;
 
     /**
-     * @Embedded(class = "DDCEmbedOneToMany", columnPrefix = false)
+     * @Embedded(class = "OneToManyEmbeddable", columnPrefix = false)
      */
     public $embed;
 
     public function __construct()
     {
-        $this->embed = new DDCEmbedOneToMany();
+        $this->embed = new OneToManyEmbeddable();
     }
 }
 
@@ -1049,13 +1049,13 @@ class BidirectionalManyToManyEntity
 
     /**
      * @var int
-     * @ManyToMany(targetEntity="DDCEmbeddableManyToMany", mappedBy="embed.bidirectional")
+     * @ManyToMany(targetEntity="EmbeddableManyToManyEntity", mappedBy="embed.bidirectional")
      */
     public $property;
 
     /**
      * @var int
-     * @ManyToMany(targetEntity="DDCEmbeddableManyToMany", inversedBy="embed.bidirectionalInversed")
+     * @ManyToMany(targetEntity="EmbeddableManyToManyEntity", inversedBy="embed.bidirectionalInversed")
      */
     public $propertyInversed;
 }
@@ -1063,7 +1063,7 @@ class BidirectionalManyToManyEntity
 /**
  * @Embeddable()
  */
-class DDCEmbedManyToMany
+class ManyToManyEmbeddable
 {
     const CLASSNAME = __CLASS__;
 
@@ -1086,7 +1086,7 @@ class DDCEmbedManyToMany
 /**
  * @Entity
  */
-class DDCEmbeddableManyToMany
+class EmbeddableManyToManyEntity
 {
     const CLASSNAME = __CLASS__;
 
@@ -1098,7 +1098,7 @@ class DDCEmbeddableManyToMany
     public $id;
 
     /**
-     * @Embedded(class = "DDCEmbedManyToMany", columnPrefix = false)
+     * @Embedded(class = "ManyToManyEmbeddable", columnPrefix = false)
      */
     public $embed;
 
@@ -1107,7 +1107,7 @@ class DDCEmbeddableManyToMany
      */
     public function __construct()
     {
-        $this->embed = new DDCEmbedManyToMany();
+        $this->embed = new ManyToManyEmbeddable();
     }
 }
 
@@ -1142,13 +1142,13 @@ class BidirectionalOneToOneEntity
 
     /**
      * @var int
-     * @OneToOne(targetEntity="DDCEmbeddableOneToOne", mappedBy="embed.bidirectional")
+     * @OneToOne(targetEntity="EmbeddableOneToOneEntity", mappedBy="embed.bidirectional")
      */
     public $property;
 
     /**
      * @var int
-     * @OneToOne(targetEntity="DDCEmbeddableOneToOne", inversedBy="embed.bidirectionalInversed")
+     * @OneToOne(targetEntity="EmbeddableOneToOneEntity", inversedBy="embed.bidirectionalInversed")
      */
     public $propertyInversed;
 }
@@ -1156,7 +1156,7 @@ class BidirectionalOneToOneEntity
 /**
  * @Embeddable()
  */
-class DDCEmbedOneToOne
+class OneToOneEmbeddable
 {
     const CLASSNAME = __CLASS__;
 
@@ -1179,7 +1179,7 @@ class DDCEmbedOneToOne
 /**
  * @Entity
  */
-class DDCEmbeddableOneToOne
+class EmbeddableOneToOneEntity
 {
     const CLASSNAME = __CLASS__;
 
@@ -1191,7 +1191,7 @@ class DDCEmbeddableOneToOne
     public $id;
 
     /**
-     * @Embedded(class = "DDCEmbedOneToOne", columnPrefix = false)
+     * @Embedded(class = "OneToOneEmbeddable", columnPrefix = false)
      */
     public $embed;
 
@@ -1200,6 +1200,6 @@ class DDCEmbeddableOneToOne
      */
     public function __construct()
     {
-        $this->embed = new DDCEmbedOneToOne();
+        $this->embed = new OneToOneEmbeddable();
     }
 }
