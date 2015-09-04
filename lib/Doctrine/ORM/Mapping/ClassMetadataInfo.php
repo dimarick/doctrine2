@@ -3299,13 +3299,37 @@ class ClassMetadataInfo implements ClassMetadata
                 $associationMapping = $this->prefixJoinColumns($embeddable, $property, $associationMapping);
                 $this->mapManyToOne($associationMapping);
             } else if ($associationMapping['type'] === self::ONE_TO_MANY) {
+                $this->assertEmbeddableMappedOnce($embeddable, $property);
                 $this->mapOneToMany($associationMapping);
             } else if ($associationMapping['type'] === self::MANY_TO_MANY) {
+                $this->assertEmbeddableMappedOnce($embeddable, $property);
                 $this->mapManyToMany($associationMapping);
             } else if ($associationMapping['type'] === self::ONE_TO_ONE) {
-                $associationMapping = $this->prefixJoinColumns($embeddable, $property, $associationMapping);
+                if ($associationMapping['isOwningSide']) {
+                    $associationMapping = $this->prefixJoinColumns($embeddable, $property, $associationMapping);
+                } else {
+                    $this->assertEmbeddableMappedOnce($embeddable, $property);
+                }
                 $this->mapOneToOne($associationMapping);
             }
+        }
+    }
+
+    /**
+     * @param ClassMetadataInfo $embeddable
+     * @throws MappingException
+     */
+    private function assertEmbeddableMappedOnce(ClassMetadataInfo $embeddable, $property)
+    {
+        $embeddableDuplicates = [];
+        foreach ($this->embeddedClasses as $embeddableConfig) {
+            if ($embeddableConfig['class'] === $embeddable->name) {
+                $embeddableDuplicates[] = $embeddableConfig;
+            }
+        }
+
+        if (count($embeddableDuplicates) > 1) {
+            throw MappingException::duplicateEmbeddedMapping($this->name, $property);
         }
     }
 
