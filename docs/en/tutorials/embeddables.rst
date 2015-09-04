@@ -166,3 +166,7 @@ as if they were declared in the ``User`` class:
 
     SELECT u FROM User u WHERE u.address.city = :myCity
 
+    //Joining association from embedded also works
+    SELECT u, city FROM User u
+    INNER JOIN u.address.city city
+    WHERE u.address.city = :myCity
