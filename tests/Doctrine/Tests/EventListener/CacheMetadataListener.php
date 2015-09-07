@@ -59,6 +59,9 @@ class CacheMetadataListener
      */
     protected function enableCaching(ClassMetadata $metadata, EntityManager $em)
     {
+        if ($metadata->isEmbeddedClass) {
+            return;
+        }
         if ($this->isVisited($metadata)) {
             return; // Already handled in the past
         }

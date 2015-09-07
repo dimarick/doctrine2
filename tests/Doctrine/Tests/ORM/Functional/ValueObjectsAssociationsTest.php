@@ -344,6 +344,7 @@ class ValueObjectsAssociationsTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->persist($relatedBiInversed2);
 
         $this->_em->remove($entity->embed->bidirectionalInversed);
+        $entity->embed->bidirectionalInversed = null;
 
         //FuckFuckFuck. Flush remove entity to database to avoid unique constraint violation, because inserts runs before delete in flush
         $this->_em->flush();
